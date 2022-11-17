@@ -1,3 +1,5 @@
+use std::fmt;
+
 enum Card {
     Coin,
     Dancer,
@@ -6,6 +8,24 @@ enum Card {
     Potion,
     Scabbs,
     Shark,
+}
+
+impl fmt::Display for Card {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match *self {
+                Card::Coin => "Coin",
+                Card::Dancer => "Dancer",
+                Card::Foxy => "Foxy",
+                Card::Pillager => "Pillager",
+                Card::Potion => "Potion",
+                Card::Scabbs => "Scabbs",
+                Card::Shark => "Shark",
+            }
+        )
+    }
 }
 
 fn cost(card: &Card) -> i32 {
@@ -20,6 +40,32 @@ fn cost(card: &Card) -> i32 {
     }
 }
 
+fn minion(card: &Card) -> bool {
+    match card {
+        Card::Dancer => true,
+        Card::Foxy => true,
+        Card::Pillager => true,
+        Card::Scabbs => true,
+        Card::Shark => true,
+        _ => false,
+    }
+}
+
+fn combo(card: &Card) -> bool {
+    match card {
+        Card::Pillager => true,
+        Card::Scabbs => true,
+        _ => false,
+    }
+}
+
 fn main() {
-    println!("cost of dancer: {}", cost(&Card::Dancer));
+    let c = Card::Dancer;
+    println!(
+        "{} has cost {}, minion {}, combo {}",
+        c,
+        cost(&c),
+        minion(&c),
+        combo(&c)
+    );
 }
