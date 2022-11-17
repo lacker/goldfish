@@ -24,34 +24,36 @@ impl fmt::Display for Card {
     }
 }
 
-fn cost(card: &Card) -> i32 {
-    match card {
-        Card::Coin => 0,
-        Card::Dancer => 2,
-        Card::Foxy => 2,
-        Card::Pillager => 6,
-        Card::Potion => 4,
-        Card::Scabbs => 4,
-        Card::Shark => 4,
+impl Card {
+    fn cost(&self) -> i32 {
+        match self {
+            Card::Coin => 0,
+            Card::Dancer => 2,
+            Card::Foxy => 2,
+            Card::Pillager => 6,
+            Card::Potion => 4,
+            Card::Scabbs => 4,
+            Card::Shark => 4,
+        }
     }
-}
 
-fn minion(card: &Card) -> bool {
-    match card {
-        Card::Dancer => true,
-        Card::Foxy => true,
-        Card::Pillager => true,
-        Card::Scabbs => true,
-        Card::Shark => true,
-        _ => false,
+    fn minion(&self) -> bool {
+        match self {
+            Card::Dancer => true,
+            Card::Foxy => true,
+            Card::Pillager => true,
+            Card::Scabbs => true,
+            Card::Shark => true,
+            _ => false,
+        }
     }
-}
 
-fn combo(card: &Card) -> bool {
-    match card {
-        Card::Pillager => true,
-        Card::Scabbs => true,
-        _ => false,
+    fn combo(&self) -> bool {
+        match self {
+            Card::Pillager => true,
+            Card::Scabbs => true,
+            _ => false,
+        }
     }
 }
 
@@ -60,8 +62,8 @@ fn main() {
     println!(
         "{} has cost {}, minion {}, combo {}",
         c,
-        cost(&c),
-        minion(&c),
-        combo(&c)
+        c.cost(),
+        c.minion(),
+        c.combo()
     );
 }
