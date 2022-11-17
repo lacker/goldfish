@@ -12,19 +12,15 @@ enum Card {
 
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match *self {
-                Card::Coin => "Coin",
-                Card::Dancer => "Dancer",
-                Card::Foxy => "Foxy",
-                Card::Pillager => "Pillager",
-                Card::Potion => "Potion",
-                Card::Scabbs => "Scabbs",
-                Card::Shark => "Shark",
-            }
-        )
+        f.write_str(match *self {
+            Card::Coin => "Coin",
+            Card::Dancer => "Dancer",
+            Card::Foxy => "Foxy",
+            Card::Pillager => "Pillager",
+            Card::Potion => "Potion",
+            Card::Scabbs => "Scabbs",
+            Card::Shark => "Shark",
+        })
     }
 }
 
