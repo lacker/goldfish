@@ -3,7 +3,7 @@
 use std::fmt;
 
 // Properties that apply to a card wherever it is
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum Card {
     Coin,
     Dancer,
@@ -63,7 +63,7 @@ impl Card {
 
 // Properties that apply to only the specific version of this card, in our hand.
 // This could extend to on-board properties later.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
 struct CardInstance {
     card: Card,
     potion: bool,
@@ -178,6 +178,16 @@ impl Game {
             return false;
         }
         self.mana >= self.cost(index)
+    }
+
+    fn add_card_instances_to_hand(&mut self, iter: impl Iterator<Item = CardInstance>) {
+        for ci in iter {
+            if self.hand.len() >= 10 {
+                break;
+            }
+            self.hand.push(ci);
+        }
+        self.hand.sort();
     }
 }
 
