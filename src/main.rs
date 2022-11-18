@@ -85,6 +85,14 @@ impl fmt::Display for CardInstance {
 }
 
 impl CardInstance {
+    fn new(card: &Card) -> Self {
+        Self {
+            card: *card,
+            potion: false,
+            tenwu: false,
+        }
+    }
+
     fn cost(&self) -> i32 {
         if self.potion || self.tenwu {
             1
@@ -192,7 +200,15 @@ impl Game {
     }
 
     fn add_card_instance_to_hand(&mut self, ci: CardInstance) {
-        self.add_card_instances_to_hand(iter::once(ci));
+        self.add_card_instances_to_hand(iter::once(ci))
+    }
+
+    fn add_cards_to_hand(&mut self, iter: impl Iterator<Item = Card>) {
+        self.add_card_instances_to_hand(iter.map(|c| CardInstance::new(&c)))
+    }
+
+    fn add_card_to_hand(&mut self, card: Card) {
+        self.add_card_instance_to_hand(CardInstance::new(&card))
     }
 }
 
