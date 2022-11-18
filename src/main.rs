@@ -207,8 +207,24 @@ impl Game {
         self.add_card_instances_to_hand(iter.map(|c| CardInstance::new(&c)))
     }
 
-    fn add_card_to_hand(&mut self, card: Card) {
-        self.add_card_instance_to_hand(CardInstance::new(&card))
+    fn add_card_to_hand(&mut self, card: &Card) {
+        self.add_card_instance_to_hand(CardInstance::new(card))
+    }
+
+    // Handles battlecries and combos
+    fn come_into_play(&mut self, card: &Card) {
+        match card {
+            Card::Dancer => self.add_card_to_hand(&Card::Coin),
+            Card::Foxy => self.foxy += 1,
+            Card::Pillager => self.life -= self.storm,
+            Card::Scabbs => {
+                if self.storm > 0 {
+                    self.scabbs += 1;
+                    self.next_scabbs += 1;
+                }
+            }
+            _ => (),
+        }
     }
 }
 
