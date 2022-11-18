@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::fmt;
+use std::iter;
 
 // Properties that apply to a card wherever it is
 #[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
@@ -188,6 +189,10 @@ impl Game {
             self.hand.push(ci);
         }
         self.hand.sort();
+    }
+
+    fn add_card_instance_to_hand(&mut self, ci: CardInstance) {
+        self.add_card_instances_to_hand(iter::once(ci));
     }
 }
 
