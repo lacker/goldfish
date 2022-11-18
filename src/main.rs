@@ -81,6 +81,16 @@ impl fmt::Display for CardInstance {
     }
 }
 
+impl CardInstance {
+    fn cost(&self) -> i32 {
+        if self.potion || self.tenwu {
+            1
+        } else {
+            self.card.cost()
+        }
+    }
+}
+
 #[derive(Clone)]
 struct Game {
     board: Vec<Card>,        // our side of the board
@@ -145,6 +155,17 @@ impl Game {
             scabbs: 0,
             next_scabbs: 0,
         }
+    }
+
+    // Mana cost of the card at the given index in hand
+    // Handles discounts
+    pub fn cost(&self, index: usize) -> i32 {
+        let card = self.hand[index];
+        let cost = card.cost() - self.scabbs * 3;
+        if card.card.combo() {
+            let cost = cost - self.foxy * 2;
+        }
+        std::cmp::max(cost, 0)
     }
 }
 
