@@ -114,6 +114,8 @@ struct Game {
     next_scabbs: i32,        // number of stacks of the scabbs effect after this one
 }
 
+type Move = usize; // which card in hand to play
+
 impl fmt::Display for Game {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
@@ -225,6 +227,48 @@ impl Game {
             }
             _ => (),
         }
+    }
+
+    // Play the card at the given index in hand
+    fn play(&mut self, index: usize) {
+        let card = self.hand[index];
+        self.mana -= self.cost(index);
+        self.hand.remove(index);
+        self.foxy = 0;
+        self.scabbs = self.next_scabbs;
+        self.next_scabbs = 0;
+
+        if card.card.minion() {
+            self.board.push(card.card);
+        }
+
+        self.come_into_play(&card.card);
+        if self.board.contains(&Card::Shark) {
+            self.come_into_play(&card.card);
+        }
+
+        match card.card {
+            Card::Coin => self.mana += 1,
+            Card::Potion => {
+                let cis: Vec<CardInstance> = self
+                    .board
+                    .iter()
+                    .map(|c| {
+                        let mut ci = CardInstance::new(c);
+                        ci.potion = true;
+                        ci
+                    })
+                    .collect();
+                self.add_card_instances_to_hand(cis.into_iter());
+            }
+            _ => (),
+        }
+
+        self.storm += 1
+    }
+
+    fn possible_moves(&mut self) -> Vec<usize> {
+        (0..self.hand.len()).filter(|i| self.can_play(*i)).collect()
     }
 }
 
