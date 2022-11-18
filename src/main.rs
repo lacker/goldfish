@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::fmt;
 
 // Properties that apply to a card wherever it is
@@ -144,7 +146,7 @@ impl fmt::Display for Game {
 }
 
 impl Game {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             board: Vec::new(),
             hand: Vec::new(),
@@ -159,13 +161,23 @@ impl Game {
 
     // Mana cost of the card at the given index in hand
     // Handles discounts
-    pub fn cost(&self, index: usize) -> i32 {
+    fn cost(&self, index: usize) -> i32 {
         let card = self.hand[index];
-        let cost = card.cost() - self.scabbs * 3;
+        let mut cost = card.cost() - self.scabbs * 3;
         if card.card.combo() {
-            let cost = cost - self.foxy * 2;
+            cost -= self.foxy * 2;
         }
         std::cmp::max(cost, 0)
+    }
+
+    // Whether we can play the card at the given index in hand
+    fn can_play(&self, index: usize) -> bool {
+        let card = self.hand[index];
+        if self.board.len() >= 7 && card.card.minion() {
+            // The board is full
+            return false;
+        }
+        self.mana >= self.cost(index)
     }
 }
 
