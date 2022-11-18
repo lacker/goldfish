@@ -267,8 +267,12 @@ impl Game {
         self.storm += 1
     }
 
-    fn possible_moves(&mut self) -> Vec<usize> {
+    fn possible_moves(&self) -> Vec<usize> {
         (0..self.hand.len()).filter(|i| self.can_play(*i)).collect()
+    }
+
+    fn is_win(&self) -> bool {
+        self.life <= 0
     }
 }
 
