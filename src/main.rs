@@ -16,6 +16,19 @@ enum Card {
     Shark,
 }
 
+// https://www.vicioussyndicate.com/decks/pillager-rogue-4/
+const BASE_DECK: &'static [Card] = &[
+    Card::Coin,
+    Card::Coin,
+    Card::Foxy,
+    Card::Dancer,
+    Card::Potion,
+    Card::Scabbs,
+    Card::Shark,
+    Card::Pillager,
+    Card::Pillager,
+];
+
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
