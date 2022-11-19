@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::iter;
+use std::time::Instant;
 
 // Properties that apply to a card wherever it is
 #[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
@@ -115,6 +116,12 @@ struct Game {
 }
 
 type Move = usize; // which card in hand to play
+
+enum Plan {
+    Win(Vec<Move>),
+    Lose,
+    Timeout,
+}
 
 impl fmt::Display for Game {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -273,6 +280,44 @@ impl Game {
 
     fn is_win(&self) -> bool {
         self.life <= 0
+    }
+
+    // Returns a plan with reversed moves.
+    fn find_win_helper(&self, start: Instant) -> Plan {
+        if start.elapsed().as_secs() > 5 {
+            return Plan::Timeout;
+        }
+        if self.is_win() {
+            return Plan::Win(Vec::new());
+        }
+        let possible = self.possible_moves();
+        for m in possible {
+            let mut clone = self.clone();
+            clone.play(m);
+            match clone.find_win_helper(start) {
+                Plan::Win(mut moves) => {
+                    moves.push(m);
+                    return Plan::Win(moves);
+                }
+                Plan::Lose => (),
+                Plan::Timeout => return Plan::Timeout,
+            }
+        }
+
+        // Our search is exhausted
+        Plan::Lose
+    }
+
+    // Returns a plan with list of moves to win.
+    fn find_win(&self) -> Plan {
+        let start = Instant::now();
+        match self.find_win_helper(start) {
+            Plan::Win(mut moves) => {
+                moves.reverse();
+                Plan::Win(moves)
+            }
+            x => x,
+        }
     }
 }
 
