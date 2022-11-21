@@ -334,6 +334,17 @@ impl Game {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_game() {
+        let game =  Game::new();
+        assert!(game.hand.len() == 0)
+    }
+}
+
 fn main() {
     let c = Card::Dancer;
     println!(
