@@ -4,77 +4,8 @@ use std::fmt;
 use std::iter;
 use std::time::Instant;
 
-// Properties that apply to a card wherever it is
-#[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
-enum Card {
-    Coin,
-    Dancer,
-    Foxy,
-    Pillager,
-    Potion,
-    Scabbs,
-    Shark,
-}
-
-// https://www.vicioussyndicate.com/decks/pillager-rogue-4/
-const BASE_DECK: &'static [Card] = &[
-    Card::Coin,
-    Card::Coin,
-    Card::Foxy,
-    Card::Dancer,
-    Card::Potion,
-    Card::Scabbs,
-    Card::Shark,
-    Card::Pillager,
-    Card::Pillager,
-];
-
-impl fmt::Display for Card {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(match *self {
-            Card::Coin => "Coin",
-            Card::Dancer => "Dancer",
-            Card::Foxy => "Foxy",
-            Card::Pillager => "Pillager",
-            Card::Potion => "Potion",
-            Card::Scabbs => "Scabbs",
-            Card::Shark => "Shark",
-        })
-    }
-}
-
-impl Card {
-    fn cost(&self) -> i32 {
-        match self {
-            Card::Coin => 0,
-            Card::Dancer => 2,
-            Card::Foxy => 2,
-            Card::Pillager => 6,
-            Card::Potion => 4,
-            Card::Scabbs => 4,
-            Card::Shark => 4,
-        }
-    }
-
-    fn minion(&self) -> bool {
-        match self {
-            Card::Dancer => true,
-            Card::Foxy => true,
-            Card::Pillager => true,
-            Card::Scabbs => true,
-            Card::Shark => true,
-            _ => false,
-        }
-    }
-
-    fn combo(&self) -> bool {
-        match self {
-            Card::Pillager => true,
-            Card::Scabbs => true,
-            _ => false,
-        }
-    }
-}
+mod card;
+use card::Card;
 
 // Properties that apply to only the specific version of this card, in our hand.
 // This could extend to on-board properties later.
@@ -343,15 +274,16 @@ mod tests {
         let game =  Game::new();
         assert!(game.hand.len() == 0)
     }
+
+    #[test]
+    fn making_a_dancer() {
+        let c: Card = Card::Dancer;
+        assert!(c.cost() == 2);
+        assert!(c.minion() == true);
+        assert!(c.combo() == false);
+    }
 }
 
 fn main() {
-    let c = Card::Dancer;
-    println!(
-        "{} has cost {}, minion {}, combo {}",
-        c,
-        c.cost(),
-        c.minion(),
-        c.combo()
-    );
+    println!("TODO: something");
 }
