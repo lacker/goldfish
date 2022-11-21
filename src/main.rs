@@ -15,12 +15,13 @@ struct Game {
     board: Vec<Card>,        // our side of the board
     hand: Vec<CardInstance>, // our hand
     life: i32,               // the opponent's life
-    mana: i32,               // our mana
+    mana: i32,               // our current mana
     storm: i32,              // number of things played this turn
     foxy: i32,               // number of stacks of the foxy effect
     scabbs: i32,             // number of stacks of the scabbs effect
     next_scabbs: i32,        // number of stacks of the scabbs effect after this one
     deck: Vec<Card>,         // the cards left in the deck
+    turn: i32,               // the current turn
 }
 
 type Move = usize; // which card in hand to play
@@ -83,6 +84,7 @@ impl Game {
             scabbs: 0,
             next_scabbs: 0,
             deck: STARTING_DECK.to_vec(),
+            turn: 0,
         }
     }
 
@@ -252,6 +254,16 @@ impl Game {
             }
             x => x,
         }
+    }
+
+    fn next_turn(&mut self) {
+        self.turn += 1;
+        self.mana = std::cmp::min(self.turn, 10);
+        self.storm = 0;
+        for ci in self.hand.iter_mut() {
+            ci.tenwu = false;
+        }
+        self.draw();
     }
 }
 
