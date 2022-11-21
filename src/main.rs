@@ -24,7 +24,10 @@ struct Game {
     turn: i32,               // the current turn
 }
 
-type Move = usize; // which card in hand to play
+struct Move {
+    index: usize,          // which card in hand to play
+    target: Option<usize>, // which card on the board to target
+}
 
 enum Plan {
     Win(Vec<Move>),
@@ -84,6 +87,15 @@ impl Game {
             .map(|c| c.to_string())
             .collect::<Vec<String>>()
             .join(", ")
+    }
+
+    fn move_string(&self, m: &Move) -> String {
+        let mut s = self.hand[m.index].to_string();
+        if let Some(t) = m.target {
+            s.push_str(" -> ");
+            s.push_str(&self.board[t].to_string());
+        }
+        s
     }
 
     // Mana cost of the card at the given index in hand
@@ -175,13 +187,20 @@ impl Game {
     }
 
     // Play the card at the given index in hand
-    fn play(&mut self, index: usize) {
-        let card = self.hand[index];
-        self.mana -= self.cost(index);
-        self.hand.remove(index);
+    fn make_move(&mut self, m: &Move) {
+        let card = self.hand[m.index];
+        self.mana -= self.cost(m.index);
+        self.hand.remove(m.index);
         self.foxy = 0;
         self.scabbs = self.next_scabbs;
         self.next_scabbs = 0;
+
+        if card.card == Card::Tenwu {
+            let target_card = self.board[m.target.unwrap()];
+            let mut ci = CardInstance::new(&target_card);
+            ci.tenwu = true;
+            self.add_card_instance_to_hand(ci);
+        }
 
         if card.card.minion() {
             self.board.push(card.card);
@@ -212,8 +231,27 @@ impl Game {
         self.storm += 1
     }
 
-    fn possible_moves(&self) -> Vec<usize> {
-        (0..self.hand.len()).filter(|i| self.can_play(*i)).collect()
+    fn possible_moves(&self) -> Vec<Move> {
+        let mut answer = Vec::new();
+        for (index, ci) in self.hand.iter().enumerate() {
+            if !self.can_play(index) {
+                continue;
+            }
+            if ci.card.must_target() {
+                for target in 0..self.board.len() {
+                    answer.push(Move {
+                        index,
+                        target: Some(target),
+                    })
+                }
+            } else {
+                answer.push(Move {
+                    index,
+                    target: None,
+                });
+            }
+        }
+        answer
     }
 
     fn is_win(&self) -> bool {
@@ -231,7 +269,7 @@ impl Game {
         let possible = self.possible_moves();
         for m in possible {
             let mut clone = self.clone();
-            clone.play(m);
+            clone.make_move(&m);
             match clone.find_win_helper(start) {
                 Plan::Win(mut moves) => {
                     moves.push(m);
@@ -298,8 +336,8 @@ fn main() {
             Plan::Win(moves) => {
                 println!("win found:");
                 for m in moves {
-                    println!("{}", game.hand[m]);
-                    game.play(m);
+                    println!("{}", game.move_string(&m));
+                    game.make_move(&m);
                 }
                 return;
             }

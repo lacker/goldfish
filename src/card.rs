@@ -10,6 +10,7 @@ pub enum Card {
     Potion,
     Scabbs,
     Shark,
+    Tenwu,
 }
 
 // https://www.vicioussyndicate.com/decks/pillager-rogue-4/
@@ -18,6 +19,7 @@ pub const STARTING_DECK: &'static [Card] = &[
     Card::Coin,
     Card::Foxy,
     Card::Dancer,
+    Card::Tenwu,
     Card::Potion,
     Card::Scabbs,
     Card::Shark,
@@ -35,6 +37,7 @@ impl fmt::Display for Card {
             Card::Potion => "Potion",
             Card::Scabbs => "Scabbs",
             Card::Shark => "Shark",
+            Card::Tenwu => "Tenwu",
         })
     }
 }
@@ -49,6 +52,7 @@ impl Card {
             Card::Potion => 4,
             Card::Scabbs => 4,
             Card::Shark => 4,
+            Card::Tenwu => 2,
         }
     }
 
@@ -70,6 +74,10 @@ impl Card {
             _ => false,
         }
     }
+
+    pub fn must_target(&self) -> bool {
+        return self == &Card::Tenwu;
+    }
 }
 
 // Properties that apply to only the specific version of this card, in our hand.
@@ -79,6 +87,7 @@ pub struct CardInstance {
     pub card: Card,
     pub potion: bool,
     pub tenwu: bool,
+    pub cost_reduction: i32,
 }
 
 impl fmt::Display for CardInstance {
@@ -100,14 +109,16 @@ impl CardInstance {
             card: *card,
             potion: false,
             tenwu: false,
+            cost_reduction: 0,
         }
     }
 
     pub fn cost(&self) -> i32 {
-        if self.potion || self.tenwu {
+        let base = if self.potion || self.tenwu {
             1
         } else {
             self.card.cost()
-        }
+        };
+        std::cmp::max(0, base - self.cost_reduction)
     }
 }
