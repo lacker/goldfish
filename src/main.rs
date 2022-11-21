@@ -42,31 +42,21 @@ impl fmt::Display for Game {
                 .map(|c| c.to_string())
                 .collect::<Vec<String>>()
                 .join(", ")
-        )
-        .unwrap();
-        writeln!(
-            f,
-            "hand: {}",
-            self.hand
-                .iter()
-                .map(|c| c.to_string())
-                .collect::<Vec<String>>()
-                .join(", ")
-        )
-        .unwrap();
-        writeln!(f, "life: {}", self.life).unwrap();
-        writeln!(f, "mana: {}", self.mana).unwrap();
+        )?;
+        writeln!(f, "hand: {}", self.hand_string())?;
+        writeln!(f, "life: {}", self.life)?;
+        writeln!(f, "mana: {}", self.mana)?;
         if self.storm > 0 {
-            writeln!(f, "storm: {}", self.storm).unwrap();
+            writeln!(f, "storm: {}", self.storm)?;
         }
         if self.foxy > 0 {
-            writeln!(f, "foxy: {}", self.foxy).unwrap();
+            writeln!(f, "foxy: {}", self.foxy)?;
         }
         if self.scabbs > 0 {
-            writeln!(f, "scabbs: {}", self.scabbs).unwrap();
+            writeln!(f, "scabbs: {}", self.scabbs)?;
         }
         if self.next_scabbs > 0 {
-            writeln!(f, "next_scabbs: {}", self.next_scabbs).unwrap();
+            writeln!(f, "next_scabbs: {}", self.next_scabbs)?;
         }
         Ok(())
     }
@@ -86,6 +76,14 @@ impl Game {
             deck: STARTING_DECK.to_vec(),
             turn: 0,
         }
+    }
+
+    fn hand_string(&self) -> String {
+        self.hand
+            .iter()
+            .map(|c| c.to_string())
+            .collect::<Vec<String>>()
+            .join(", ")
     }
 
     // Mana cost of the card at the given index in hand
@@ -148,10 +146,14 @@ impl Game {
     }
 
     // Draws one random card into our hand
-    fn draw(&mut self) {
+    fn draw(&mut self) -> bool {
+        if self.deck.is_empty() {
+            return false;
+        }
         let i = rand::random::<usize>() % self.deck.len();
         let card = self.deck.remove(i);
         self.add_card_to_hand(&card);
+        true
     }
 
     fn new_going_first() -> Self {
@@ -287,5 +289,27 @@ mod tests {
 }
 
 fn main() {
-    println!("TODO: something");
+    let mut game = Game::new_going_first();
+    while game.turn < 10 {
+        game.next_turn();
+        println!("turn {}. hand = {}", game.turn, game.hand_string());
+        let plan = game.find_win();
+        match plan {
+            Plan::Win(moves) => {
+                println!("win found:");
+                for m in moves {
+                    println!("{}", game.hand[m]);
+                    game.play(m);
+                }
+                return;
+            }
+            Plan::Lose => {
+                println!("cannot win");
+            }
+            Plan::Timeout => {
+                println!("no win found");
+            }
+        }
+        println!();
+    }
 }
