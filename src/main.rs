@@ -6,46 +6,7 @@ use std::time::Instant;
 
 mod card;
 use card::Card;
-
-// Properties that apply to only the specific version of this card, in our hand.
-// This could extend to on-board properties later.
-#[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
-struct CardInstance {
-    card: Card,
-    potion: bool,
-    tenwu: bool,
-}
-
-impl fmt::Display for CardInstance {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&self.card.to_string()).unwrap();
-        if self.potion {
-            f.write_str(" (potion)").unwrap();
-        }
-        if self.tenwu {
-            f.write_str(" (tenwu)").unwrap();
-        }
-        Ok(())
-    }
-}
-
-impl CardInstance {
-    fn new(card: &Card) -> Self {
-        Self {
-            card: *card,
-            potion: false,
-            tenwu: false,
-        }
-    }
-
-    fn cost(&self) -> i32 {
-        if self.potion || self.tenwu {
-            1
-        } else {
-            self.card.cost()
-        }
-    }
-}
+use card::CardInstance;
 
 #[derive(Clone)]
 struct Game {

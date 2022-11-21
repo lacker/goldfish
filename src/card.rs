@@ -71,3 +71,43 @@ impl Card {
         }
     }
 }
+
+// Properties that apply to only the specific version of this card, in our hand.
+// This could extend to on-board properties later.
+#[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct CardInstance {
+    pub card: Card,
+    pub potion: bool,
+    pub tenwu: bool,
+}
+
+impl fmt::Display for CardInstance {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(&self.card.to_string()).unwrap();
+        if self.potion {
+            f.write_str(" (potion)").unwrap();
+        }
+        if self.tenwu {
+            f.write_str(" (tenwu)").unwrap();
+        }
+        Ok(())
+    }
+}
+
+impl CardInstance {
+    pub fn new(card: &Card) -> Self {
+        Self {
+            card: *card,
+            potion: false,
+            tenwu: false,
+        }
+    }
+
+    pub fn cost(&self) -> i32 {
+        if self.potion || self.tenwu {
+            1
+        } else {
+            self.card.cost()
+        }
+    }
+}
