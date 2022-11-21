@@ -271,7 +271,7 @@ mod tests {
 
     #[test]
     fn new_game() {
-        let game =  Game::new();
+        let game = Game::new();
         assert!(game.hand.len() == 0)
     }
 
