@@ -13,7 +13,7 @@ pub enum Card {
 }
 
 // https://www.vicioussyndicate.com/decks/pillager-rogue-4/
-const BASE_DECK: &'static [Card] = &[
+pub const STARTING_DECK: &'static [Card] = &[
     Card::Coin,
     Card::Coin,
     Card::Foxy,

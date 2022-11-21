@@ -7,6 +7,7 @@ use std::time::Instant;
 mod card;
 use card::Card;
 use card::CardInstance;
+use card::STARTING_DECK;
 
 #[derive(Clone)]
 struct Game {
@@ -18,6 +19,7 @@ struct Game {
     foxy: i32,               // number of stacks of the foxy effect
     scabbs: i32,             // number of stacks of the scabbs effect
     next_scabbs: i32,        // number of stacks of the scabbs effect after this one
+    deck: Vec<Card>,         // the cards left in the deck
 }
 
 type Move = usize; // which card in hand to play
@@ -79,6 +81,7 @@ impl Game {
             foxy: 0,
             scabbs: 0,
             next_scabbs: 0,
+            deck: STARTING_DECK.to_vec(),
         }
     }
 
