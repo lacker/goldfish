@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use rand;
 use std::fmt;
 use std::iter;
 use std::time::Instant;
@@ -142,6 +143,31 @@ impl Game {
             }
             _ => (),
         }
+    }
+
+    // Draws one random card into our hand
+    fn draw(&mut self) {
+        let i = rand::random::<usize>() % self.deck.len();
+        let card = self.deck.remove(i);
+        self.add_card_to_hand(&card);
+    }
+
+    fn new_going_first() -> Self {
+        let mut game = Self::new();
+        game.draw();
+        game.draw();
+        game.draw();
+        game
+    }
+
+    fn new_going_second() -> Self {
+        let mut game = Self::new();
+        game.draw();
+        game.draw();
+        game.draw();
+        game.draw();
+        game.add_card_to_hand(&Card::Coin);
+        game
     }
 
     // Play the card at the given index in hand
