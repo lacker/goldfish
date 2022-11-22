@@ -1,15 +1,17 @@
 use std::fmt;
 
 // Properties that apply to a card wherever it is
+// Sort by roughly the order that you expect to play cards, to help win search.
 #[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Card {
     Coin,
+    Shark,
     Dancer,
     Foxy,
+    Scabbs,
     Pillager,
     Potion,
-    Scabbs,
-    Shark,
+    Shadowstep,
     Tenwu,
 }
 
@@ -17,6 +19,8 @@ pub enum Card {
 pub const STARTING_DECK: &'static [Card] = &[
     Card::Coin,
     Card::Coin,
+    Card::Shadowstep,
+    Card::Shadowstep,
     Card::Foxy,
     Card::Dancer,
     Card::Tenwu,
@@ -36,6 +40,7 @@ impl fmt::Display for Card {
             Card::Pillager => "Pillager",
             Card::Potion => "Potion",
             Card::Scabbs => "Scabbs",
+            Card::Shadowstep => "Shadowstep",
             Card::Shark => "Shark",
             Card::Tenwu => "Tenwu",
         })
@@ -46,6 +51,7 @@ impl Card {
     pub fn cost(&self) -> i32 {
         match self {
             Card::Coin => 0,
+            Card::Shadowstep => 0,
             Card::Dancer => 2,
             Card::Foxy => 2,
             Card::Pillager => 6,
@@ -76,7 +82,11 @@ impl Card {
     }
 
     pub fn must_target(&self) -> bool {
-        return self == &Card::Tenwu;
+        match self {
+            Card::Shadowstep => true,
+            Card::Tenwu => true,
+            _ => false,
+        }
     }
 }
 

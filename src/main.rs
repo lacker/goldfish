@@ -225,6 +225,12 @@ impl Game {
                     .collect();
                 self.add_card_instances_to_hand(cis.into_iter());
             }
+            Card::Shadowstep => {
+                let target_card = self.board.remove(m.target.unwrap());
+                let mut ci = CardInstance::new(&target_card);
+                ci.cost_reduction = 2;
+                self.add_card_instance_to_hand(ci);
+            }
             _ => (),
         }
 
