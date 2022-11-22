@@ -5,31 +5,30 @@ use std::fmt;
 use std::iter;
 use std::time::Instant;
 
-mod card;
-use card::Card;
-use card::CardInstance;
-use card::STARTING_DECK;
+use crate::card::Card;
+use crate::card::CardInstance;
+use crate::card::STARTING_DECK;
 
 #[derive(Clone)]
-struct Game {
-    board: Vec<Card>,        // our side of the board
-    hand: Vec<CardInstance>, // our hand
-    life: i32,               // the opponent's life
-    mana: i32,               // our current mana
-    storm: i32,              // number of things played this turn
-    foxy: i32,               // number of stacks of the foxy effect
-    scabbs: i32,             // number of stacks of the scabbs effect
-    next_scabbs: i32,        // number of stacks of the scabbs effect after this one
-    deck: Vec<Card>,         // the cards left in the deck
-    turn: i32,               // the current turn
+pub struct Game {
+    pub board: Vec<Card>,        // our side of the board
+    pub hand: Vec<CardInstance>, // our hand
+    pub life: i32,               // the opponent's life
+    pub mana: i32,               // our current mana
+    storm: i32,                  // number of things played this turn
+    foxy: i32,                   // number of stacks of the foxy effect
+    scabbs: i32,                 // number of stacks of the scabbs effect
+    next_scabbs: i32,            // number of stacks of the scabbs effect after this one
+    pub deck: Vec<Card>,         // the cards left in the deck
+    pub turn: i32,               // the current turn
 }
 
-struct Move {
+pub struct Move {
     index: usize,          // which card in hand to play
     target: Option<usize>, // which card on the board to target
 }
 
-enum Plan {
+pub enum Plan {
     Win(Vec<Move>),
     Lose,
     Timeout,
@@ -66,7 +65,7 @@ impl fmt::Display for Game {
 }
 
 impl Game {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             board: Vec::new(),
             hand: Vec::new(),
@@ -81,7 +80,7 @@ impl Game {
         }
     }
 
-    fn hand_string(&self) -> String {
+    pub fn hand_string(&self) -> String {
         self.hand
             .iter()
             .map(|c| c.to_string())
@@ -89,7 +88,7 @@ impl Game {
             .join(", ")
     }
 
-    fn move_string(&self, m: &Move) -> String {
+    pub fn move_string(&self, m: &Move) -> String {
         let mut s = self.hand[m.index].to_string();
         if let Some(t) = m.target {
             s.push_str(" -> ");
@@ -168,7 +167,7 @@ impl Game {
         true
     }
 
-    fn new_going_first() -> Self {
+    pub fn new_going_first() -> Self {
         let mut game = Self::new();
         game.draw();
         game.draw();
@@ -176,7 +175,7 @@ impl Game {
         game
     }
 
-    fn new_going_second() -> Self {
+    pub fn new_going_second() -> Self {
         let mut game = Self::new();
         game.draw();
         game.draw();
@@ -187,7 +186,7 @@ impl Game {
     }
 
     // Play the card at the given index in hand
-    fn make_move(&mut self, m: &Move) {
+    pub fn make_move(&mut self, m: &Move) {
         let card = self.hand[m.index];
         self.mana -= self.cost(m.index);
         self.hand.remove(m.index);
@@ -291,7 +290,7 @@ impl Game {
     }
 
     // Returns a plan with list of moves to win.
-    fn find_win(&self) -> Plan {
+    pub fn find_win(&self) -> Plan {
         let start = Instant::now();
         match self.find_win_helper(start) {
             Plan::Win(mut moves) => {
@@ -302,7 +301,7 @@ impl Game {
         }
     }
 
-    fn next_turn(&mut self) {
+    pub fn next_turn(&mut self) {
         self.turn += 1;
         self.mana = std::cmp::min(self.turn, 10);
         self.storm = 0;
@@ -329,31 +328,5 @@ mod tests {
         assert!(c.cost() == 2);
         assert!(c.minion() == true);
         assert!(c.combo() == false);
-    }
-}
-
-fn main() {
-    let mut game = Game::new_going_first();
-    while game.turn < 10 {
-        game.next_turn();
-        println!("turn {}. hand = {}", game.turn, game.hand_string());
-        let plan = game.find_win();
-        match plan {
-            Plan::Win(moves) => {
-                println!("win found:");
-                for m in moves {
-                    println!("{}", game.move_string(&m));
-                    game.make_move(&m);
-                }
-                return;
-            }
-            Plan::Lose => {
-                println!("cannot win");
-            }
-            Plan::Timeout => {
-                println!("no win found");
-            }
-        }
-        println!();
     }
 }
