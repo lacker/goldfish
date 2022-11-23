@@ -2,6 +2,8 @@
 
 use regex::Regex;
 use std::fs;
+use std::thread;
+use std::time;
 
 const DIR: &str = r"C:\Program Files (x86)\Hearthstone\Logs";
 
@@ -39,5 +41,9 @@ fn scan() {
 }
 
 fn main() {
-    scan();
+    loop {
+        scan();
+        thread::sleep(time::Duration::from_secs(5));
+        println!("\n\n\n\n\n\n\n\n\n\n");
+    }
 }
