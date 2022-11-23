@@ -24,6 +24,15 @@ fn scan() {
     match last_log_file() {
         Some(entry) => {
             println!("log file: {}", entry.path().to_str().unwrap());
+
+            // Print the last ten lines of entry
+            let file_data = fs::read_to_string(entry.path()).unwrap();
+            let lines: Vec<_> = file_data.lines().collect();
+            let num_lines = 80;
+            let start = std::cmp::max(num_lines, lines.len()) - num_lines;
+            for line in &lines[start..] {
+                println!("{}", line);
+            }
         }
         None => println!("No log files found"),
     }
