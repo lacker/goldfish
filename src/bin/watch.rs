@@ -47,7 +47,7 @@ fn read_log(previous_num_lines: usize) -> Result<LogData, std::io::Error> {
     let mana_re =
         Regex::new(r"^.*DebugPrintPower.*TAG_CHANGE Entity=lacker.*tag=RESOURCES value=(\d+).*$")
             .unwrap();
-    for line in lines.iter() {
+    for line in lines {
         if mana_re.is_match(line) {
             let caps = mana_re.captures(line).unwrap();
             log_data.mana = caps[1].parse().unwrap();
@@ -55,6 +55,18 @@ fn read_log(previous_num_lines: usize) -> Result<LogData, std::io::Error> {
     }
 
     Ok(log_data)
+}
+
+fn extract_hand(log_lines: &Vec<String>) -> Vec<String> {
+    let mut hand: Vec<String> = Vec::new();
+    let card_re = Regex::new(r"^.*entityName=([^=]+) id=(\d+) zone=HAND.*$").unwrap();
+    for line in log_lines {
+        if card_re.is_match(line) {
+            let caps = card_re.captures(line).unwrap();
+            hand.push(caps[1].to_string());
+        }
+    }
+    hand
 }
 
 fn main() {
@@ -68,6 +80,7 @@ fn main() {
                 for line in &log_data.option_block {
                     println!("{}", line);
                 }
+                println!("hand: {:?}", extract_hand(&log_data.option_block));
                 println!("mana: {}\n", log_data.mana);
             }
             previous_num_lines = log_data.num_lines;
