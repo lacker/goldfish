@@ -132,11 +132,11 @@ impl Game {
         self.add_card_instances_to_hand(iter::once(ci))
     }
 
-    fn add_cards_to_hand(&mut self, iter: impl Iterator<Item = Card>) {
+    pub fn add_cards_to_hand(&mut self, iter: impl Iterator<Item = Card>) {
         self.add_card_instances_to_hand(iter.map(|c| CardInstance::new(&c)))
     }
 
-    fn add_card_to_hand(&mut self, card: &Card) {
+    pub fn add_card_to_hand(&mut self, card: &Card) {
         self.add_card_instance_to_hand(CardInstance::new(card))
     }
 
@@ -309,6 +309,27 @@ impl Game {
             ci.tenwu = false;
         }
         self.draw();
+    }
+
+    pub fn print_plan(&self) {
+        let plan = self.find_win();
+        match plan {
+            Plan::Win(moves) => {
+                println!("win found:");
+                let mut clone = self.clone();
+                for m in moves {
+                    println!("{}", clone.move_string(&m));
+                    clone.make_move(&m);
+                }
+                return;
+            }
+            Plan::Lose => {
+                println!("cannot win");
+            }
+            Plan::Timeout => {
+                println!("timeout, no win found");
+            }
+        }
     }
 }
 

@@ -13,6 +13,7 @@ pub enum Card {
     Potion,
     Shadowstep,
     Tenwu,
+    Brick,
 }
 
 // https://www.vicioussyndicate.com/decks/pillager-rogue-4/
@@ -34,6 +35,7 @@ pub const STARTING_DECK: &'static [Card] = &[
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
+            Card::Brick => "Brick",
             Card::Coin => "Coin",
             Card::Dancer => "Dancer",
             Card::Foxy => "Foxy",
@@ -48,6 +50,21 @@ impl fmt::Display for Card {
 }
 
 impl Card {
+    pub fn from_name(s: &str) -> Self {
+        match s {
+            "The Coin" => Card::Coin,
+            "Mailbox Dancer" => Card::Dancer,
+            "Foxy Fraud" => Card::Foxy,
+            "Spectral Pillager" => Card::Pillager,
+            "Potion of Illusion" => Card::Potion,
+            "Scabbs Cutterbutter" => Card::Scabbs,
+            "Shadowstep" => Card::Shadowstep,
+            "Spirit of the Shark" => Card::Shark,
+            "Tenwu of the Red Smoke" => Card::Tenwu,
+            _ => Card::Brick,
+        }
+    }
+
     pub fn cost(&self) -> i32 {
         match self {
             Card::Coin => 0,
@@ -59,6 +76,7 @@ impl Card {
             Card::Scabbs => 4,
             Card::Shark => 4,
             Card::Tenwu => 2,
+            Card::Brick => 20,
         }
     }
 

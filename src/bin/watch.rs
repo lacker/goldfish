@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use goldfish::card::Card;
+use goldfish::game::Game;
 use regex::Regex;
 use std::fs;
 use std::thread;
@@ -15,7 +17,7 @@ struct LogData {
 }
 
 // Prints out any lines past the previous number of lines
-fn read_log(previous_num_lines: usize) -> Result<LogData, std::io::Error> {
+fn read_log() -> Result<LogData, std::io::Error> {
     let file_data = fs::read_to_string(FILENAME)?;
     let lines: Vec<_> = file_data.lines().collect();
     let mut log_data: LogData = LogData {
@@ -24,9 +26,6 @@ fn read_log(previous_num_lines: usize) -> Result<LogData, std::io::Error> {
         last_option_line: 0,
         mana: 0,
     };
-    for line in &lines[previous_num_lines..] {
-        println!("{}", line);
-    }
 
     // Find the last option block
     let option_re = Regex::new(r"^.*GameState.DebugPrintOptions.*$").unwrap();
@@ -69,23 +68,30 @@ fn extract_hand(log_lines: &Vec<String>) -> Vec<String> {
     hand
 }
 
+fn suggest(log_data: &LogData) {
+    println!("\nnew option block:");
+    for line in &log_data.option_block {
+        println!("{}", line);
+    }
+    let hand = extract_hand(&log_data.option_block);
+    println!("hand: {:?}", hand);
+    println!("mana: {}\n", log_data.mana);
+
+    let mut game = Game::new();
+    game.add_cards_to_hand(hand.iter().map(|card_name| Card::from_name(card_name)));
+    game.mana = log_data.mana;
+}
+
 fn main() {
     println!("watching");
-    let mut previous_num_lines = 0;
     let mut previous_last_option_line = 0;
     loop {
-        if let Ok(log_data) = read_log(previous_num_lines) {
+        if let Ok(log_data) = read_log() {
             if log_data.last_option_line > previous_last_option_line {
-                println!("\nnew option block:");
-                for line in &log_data.option_block {
-                    println!("{}", line);
-                }
-                println!("hand: {:?}", extract_hand(&log_data.option_block));
-                println!("mana: {}\n", log_data.mana);
+                suggest(&log_data);
             }
-            previous_num_lines = log_data.num_lines;
             previous_last_option_line = log_data.last_option_line;
         }
-        thread::sleep(time::Duration::from_secs(5));
+        thread::sleep(time::Duration::from_secs(1));
     }
 }

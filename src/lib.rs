@@ -1,2 +1,2 @@
-mod card;
+pub mod card;
 pub mod game;
