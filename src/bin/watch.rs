@@ -5,45 +5,74 @@ use std::fs;
 use std::thread;
 use std::time;
 
-const DIR: &str = r"C:\Program Files (x86)\Hearthstone\Logs";
+const FILENAME: &str = r"C:\Program Files (x86)\Hearthstone\Logs\Power.log";
 
-fn is_log_file(entry: &fs::DirEntry) -> bool {
-    let re = Regex::new(r"^hearthstone_.*log$").unwrap();
-    re.is_match(entry.file_name().to_str().unwrap())
+struct LogData {
+    num_lines: usize,
+    option_block: Vec<String>,
+    last_option_line: usize,
+    mana: i32,
 }
 
-fn last_log_file() -> Option<fs::DirEntry> {
-    let mut entries: Vec<_> = fs::read_dir(DIR)
-        .unwrap()
-        .map(|e| e.unwrap())
-        .filter(is_log_file)
-        .collect();
-    entries.sort_by_key(|e| e.path());
-    entries.into_iter().last()
-}
-
-fn scan() {
-    match last_log_file() {
-        Some(entry) => {
-            println!("log file: {}", entry.path().to_str().unwrap());
-
-            // Print the last ten lines of entry
-            let file_data = fs::read_to_string(entry.path()).unwrap();
-            let lines: Vec<_> = file_data.lines().collect();
-            let num_lines = 80;
-            let start = std::cmp::max(num_lines, lines.len()) - num_lines;
-            for line in &lines[start..] {
-                println!("{}", line);
-            }
-        }
-        None => println!("No log files found"),
+// Prints out any lines past the previous number of lines
+fn read_log(previous_num_lines: usize) -> Result<LogData, std::io::Error> {
+    let file_data = fs::read_to_string(FILENAME)?;
+    let lines: Vec<_> = file_data.lines().collect();
+    let mut log_data: LogData = LogData {
+        num_lines: lines.len(),
+        option_block: Vec::new(),
+        last_option_line: 0,
+        mana: 0,
+    };
+    for line in &lines[previous_num_lines..] {
+        println!("{}", line);
     }
+
+    // Find the last option block
+    let option_re = Regex::new(r"^.*GameState.DebugPrintOptions.*$").unwrap();
+    for (i, line) in lines.iter().enumerate().rev() {
+        if option_re.is_match(line) {
+            if log_data.option_block.is_empty() {
+                log_data.last_option_line = i;
+            }
+            log_data.option_block.push(line.to_string());
+        } else if !log_data.option_block.is_empty() {
+            // We've reached the end of the option block
+            break;
+        }
+    }
+    log_data.option_block.reverse();
+
+    // Find the mana
+    let mana_re =
+        Regex::new(r"^.*DebugPrintPower.*TAG_CHANGE Entity=lacker.*tag=RESOURCES value=(\d+).*$")
+            .unwrap();
+    for line in lines.iter() {
+        if mana_re.is_match(line) {
+            let caps = mana_re.captures(line).unwrap();
+            log_data.mana = caps[1].parse().unwrap();
+        }
+    }
+
+    Ok(log_data)
 }
 
 fn main() {
+    println!("watching");
+    let mut previous_num_lines = 0;
+    let mut previous_last_option_line = 0;
     loop {
-        scan();
+        if let Ok(log_data) = read_log(previous_num_lines) {
+            if log_data.last_option_line > previous_last_option_line {
+                println!("\nnew option block:");
+                for line in &log_data.option_block {
+                    println!("{}", line);
+                }
+                println!("mana: {}\n", log_data.mana);
+            }
+            previous_num_lines = log_data.num_lines;
+            previous_last_option_line = log_data.last_option_line;
+        }
         thread::sleep(time::Duration::from_secs(5));
-        println!("\n\n\n\n\n\n\n\n\n\n");
     }
 }
