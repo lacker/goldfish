@@ -3,6 +3,7 @@
 use goldfish::card::Card;
 use goldfish::game::Game;
 use regex::Regex;
+use std::collections::BTreeMap;
 use std::fs;
 use std::thread;
 use std::time;
@@ -11,7 +12,7 @@ const FILENAME: &str = r"C:\Program Files (x86)\Hearthstone\Logs\Power.log";
 
 struct LogData {
     num_lines: usize,
-    option_block: Vec<String>,
+    hand: Vec<Card>,
     last_option_line: usize,
     mana: i32,
 }
@@ -22,25 +23,56 @@ fn read_log() -> Result<LogData, std::io::Error> {
     let lines: Vec<_> = file_data.lines().collect();
     let mut log_data: LogData = LogData {
         num_lines: lines.len(),
-        option_block: Vec::new(),
+        hand: Vec::new(),
         last_option_line: 0,
         mana: 0,
     };
 
+    // Populate the id -> card_id map
+    let mut card_id_map: BTreeMap<i32, String> = BTreeMap::new();
+    let card_id_re = Regex::new(r"^.*Updating Entity.* id=(\d+) .* CardID=(\w+).*$").unwrap();
+    for line in lines.iter() {
+        if let Some(captures) = card_id_re.captures(line) {
+            let id = captures[1].parse::<i32>().unwrap();
+            let card_id = &captures[2];
+            card_id_map.insert(id, card_id.to_string());
+        }
+    }
+
     // Find the last option block
+    let mut option_block: Vec<String> = Vec::new();
     let option_re = Regex::new(r"^.*GameState.DebugPrintOptions.*$").unwrap();
     for (i, line) in lines.iter().enumerate().rev() {
         if option_re.is_match(line) {
-            if log_data.option_block.is_empty() {
+            if option_block.is_empty() {
                 log_data.last_option_line = i;
             }
-            log_data.option_block.push(line.to_string());
-        } else if !log_data.option_block.is_empty() {
+            option_block.push(line.to_string());
+        } else if !option_block.is_empty() {
             // We've reached the end of the option block
             break;
         }
     }
-    log_data.option_block.reverse();
+    option_block.reverse();
+
+    // Extract the hand
+    let known_card_re =
+        Regex::new(r"^.*entityName=([^=]+) id=(\d+) zone=(?:HAND|SETASIDE).*$").unwrap();
+    let unknown_card_re =
+        Regex::new(r"^.*option.*type=POWER.*entityName=UNKNOWN ENTITY.* id=(\d+).*$").unwrap();
+    for line in option_block.iter() {
+        if known_card_re.is_match(line) {
+            let caps = known_card_re.captures(line).unwrap();
+            log_data.hand.push(Card::from_name(&caps[1]));
+        } else if unknown_card_re.is_match(line) {
+            println!("{}", line);
+            let caps = unknown_card_re.captures(line).unwrap();
+            let id = caps[1].parse::<i32>().unwrap();
+            if let Some(card_id) = card_id_map.get(&id) {
+                log_data.hand.push(Card::from_card_id(card_id));
+            }
+        }
+    }
 
     // Find the mana
     let mana_re =
@@ -56,30 +88,14 @@ fn read_log() -> Result<LogData, std::io::Error> {
     Ok(log_data)
 }
 
-fn extract_hand(log_lines: &Vec<String>) -> Vec<String> {
-    let mut hand: Vec<String> = Vec::new();
-    let card_re = Regex::new(r"^.*entityName=([^=]+) id=(\d+) zone=HAND.*$").unwrap();
-    for line in log_lines {
-        if card_re.is_match(line) {
-            let caps = card_re.captures(line).unwrap();
-            hand.push(caps[1].to_string());
-        }
-    }
-    hand
-}
-
 fn suggest(log_data: &LogData) {
-    println!("\nnew option block:");
-    for line in &log_data.option_block {
-        println!("{}", line);
-    }
-    let hand = extract_hand(&log_data.option_block);
-    println!("hand: {:?}", hand);
-    println!("mana: {}\n", log_data.mana);
+    println!("\nhand: {:?}", log_data.hand);
+    println!("mana: {}", log_data.mana);
 
     let mut game = Game::new();
-    game.add_cards_to_hand(hand.iter().map(|card_name| Card::from_name(card_name)));
+    game.add_cards_to_hand(log_data.hand.clone().into_iter());
     game.mana = log_data.mana;
+    game.print_plan();
 }
 
 fn main() {
