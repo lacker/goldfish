@@ -65,7 +65,6 @@ fn read_log() -> Result<LogData, std::io::Error> {
             let caps = known_card_re.captures(line).unwrap();
             log_data.hand.push(Card::from_name(&caps[1]));
         } else if unknown_card_re.is_match(line) {
-            println!("{}", line);
             let caps = unknown_card_re.captures(line).unwrap();
             let id = caps[1].parse::<i32>().unwrap();
             if let Some(card_id) = card_id_map.get(&id) {
