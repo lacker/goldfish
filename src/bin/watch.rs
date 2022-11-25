@@ -29,7 +29,7 @@ fn read_log() -> Result<LogData, std::io::Error> {
     };
 
     // Populate the id -> card_id map
-    // This sort of line happens
+    // This type of line happens whenever we draw a card, and perhaps at other times
     let mut card_id_map: BTreeMap<i32, String> = BTreeMap::new();
     let card_id_re = Regex::new(r"^.*Updating Entity.* id=(\d+) .* CardID=(\w+).*$").unwrap();
     for line in lines.iter() {
@@ -61,22 +61,37 @@ fn read_log() -> Result<LogData, std::io::Error> {
     let known_card_re =
         Regex::new(r"^.*entityName=([^=]+) id=(\d+) zone=(?:HAND|SETASIDE).*$").unwrap();
     let unknown_card_re =
-        Regex::new(r"^.*option.*type=POWER.*entityName=UNKNOWN ENTITY.* id=(\d+).*$").unwrap();
+        Regex::new(r"^.*option.*type=POWER.*entityName=UNKNOWN ENTITY.* id=(\d+).*player=1.*$")
+            .unwrap();
     for line in option_block.iter() {
         if known_card_re.is_match(line) {
-            println!("{}", line);
+            // println!("{}", line);
             let caps = known_card_re.captures(line).unwrap();
             let id = caps[2].parse::<i32>().unwrap();
             if seen_ids.contains(&id) {
                 continue;
             }
             seen_ids.insert(id);
-            log_data.hand.push(Card::from_name(&caps[1]));
+            let name = &caps[1];
+            let c = Card::from_name(name);
+            if c == Card::Unknown {
+                println!("unknown card name: {}", name);
+            }
+            log_data.hand.push(c);
         } else if unknown_card_re.is_match(line) {
+            // println!("{}", line);
             let caps = unknown_card_re.captures(line).unwrap();
             let id = caps[1].parse::<i32>().unwrap();
+            if seen_ids.contains(&id) {
+                continue;
+            }
+            seen_ids.insert(id);
             if let Some(card_id) = card_id_map.get(&id) {
-                log_data.hand.push(Card::from_card_id(card_id));
+                let c = Card::from_card_id(card_id);
+                if c == Card::Unknown {
+                    println!("unknown id : {} card id: {}", id, card_id);
+                }
+                log_data.hand.push(c);
             }
         }
     }

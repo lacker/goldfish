@@ -25,6 +25,7 @@ pub enum Card {
     Cutlass,
     Extortion,
     Preparation,
+    BoneSpike,
     Unknown,
 }
 
@@ -59,6 +60,7 @@ lazy_static! {
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
+            Card::BoneSpike => "Serrated Bone Spike",
             Card::Coin => "The Coin",
             Card::Cutlass => "Blackwater Cutlass",
             Card::Dancer => "Mailbox Dancer",
@@ -99,27 +101,28 @@ impl Card {
 
     pub fn from_card_id(card_id: &str) -> Self {
         match card_id {
-            "The Coin" => Card::Coin,
-            "Counterfeit Coin" => Card::Coin,
-            "Blackwater Cutlass" => Card::Cutlass,
-            "Mailbox Dancer" => Card::Dancer,
-            "Door of Shadows" => Card::Door,
+            "REV_939" => Card::BoneSpike,
+            "GAME_005" => Card::Coin,
+            "CFM_630" => Card::Coin, // for Counterfeit Coin
+            "DED_004" => Card::Cutlass,
+            "SW_070" => Card::Dancer,
+            "REV_938" => Card::Door,
             "LOOT_214" => Card::Evasion,
             "EX1_593" => Card::Extortion,
             "DMF_511" => Card::Foxy,
             "TSC_916" => Card::GoneFishin,
-            "Spectral Pillager" => Card::Pillager,
-            "Potion of Illusion" => Card::Potion,
+            "ICC_910" => Card::Pillager,
+            "SCH_352" => Card::Potion,
             "CORE_EX1_145" => Card::Preparation,
-            "Scabbs Cutterbutter" => Card::Scabbs,
-            "Secret Passage" => Card::SecretPassage,
-            "Shadowstep" => Card::Shadowstep,
-            "Shroud of Concealment" => Card::Shroud,
-            "Spirit of the Shark" => Card::Shark,
+            "BAR_552" => Card::Scabbs,
+            "SCH_305" => Card::SecretPassage,
+            "CORE_EX1_144" => Card::Shadowstep,
+            "WC_016" => Card::Shroud,
+            "TRL_092" => Card::Shark,
             "DMF_515" => Card::Swindle,
-            "Tenwu of the Red Smoke" => Card::Tenwu,
+            "DMF_071" => Card::Tenwu,
             _ => {
-                println!("unknown card id: {}", card_id);
+                // println!("unknown card id: {}", card_id);
                 Card::Unknown
             }
         }
