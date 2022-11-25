@@ -1,8 +1,11 @@
+use enum_iterator::Sequence;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 use std::fmt;
 
-// Properties that apply to a card wherever it is
+// All the cards we handle.
 // Sort by roughly the order that you expect to play cards, to help win search.
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Sequence)]
 pub enum Card {
     Coin,
     Shark,
@@ -21,6 +24,7 @@ pub enum Card {
     Door,
     Cutlass,
     Extortion,
+    Preparation,
     Unknown,
 }
 
@@ -41,27 +45,38 @@ pub const STARTING_DECK: &'static [Card] = &[
     Card::Pillager,
 ];
 
+lazy_static! {
+    static ref CARD_FOR_NAME: HashMap<String, Card> = {
+        let mut m = HashMap::new();
+        for card in enum_iterator::all::<Card>() {
+            m.insert(card.to_string(), card);
+        }
+        m
+    };
+}
+
 // Short form of the card name
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
-            Card::Coin => "Coin",
-            Card::Cutlass => "Cutlass",
-            Card::Dancer => "Dancer",
-            Card::Door => "Door",
+            Card::Coin => "The Coin",
+            Card::Cutlass => "Blackwater Cutlass",
+            Card::Dancer => "Mailbox Dancer",
+            Card::Door => "Door of Shadows",
             Card::Evasion => "Evasion",
-            Card::Extortion => "Extortion",
-            Card::Foxy => "Foxy",
-            Card::GoneFishin => "Gone Fishin",
-            Card::Pillager => "Pillager",
-            Card::Potion => "Potion",
-            Card::Scabbs => "Scabbs",
-            Card::Shadowstep => "Shadowstep",
-            Card::Shark => "Shark",
-            Card::Shroud => "Shroud",
+            Card::Extortion => "SI:7 Extortion",
+            Card::Foxy => "Foxy Fraud",
+            Card::GoneFishin => "Gone Fishin'",
+            Card::Pillager => "Spectral Pillager",
+            Card::Potion => "Potion of Illusion",
+            Card::Preparation => "Preparation",
+            Card::Scabbs => "Scabbs Cutterbutter",
             Card::SecretPassage => "Secret Passage",
+            Card::Shadowstep => "Shadowstep",
+            Card::Shark => "Spirit of the Shark",
+            Card::Shroud => "Shroud of Concealment",
             Card::Swindle => "Swindle",
-            Card::Tenwu => "Tenwu",
+            Card::Tenwu => "Tenwu of the Red Smoke",
             Card::Unknown => "Unknown",
         })
     }
@@ -70,25 +85,11 @@ impl fmt::Display for Card {
 impl Card {
     // Must match the log file output
     pub fn from_name(s: &str) -> Self {
+        if let Some(card) = CARD_FOR_NAME.get(s) {
+            return *card;
+        }
         match s {
-            "The Coin" => Card::Coin,
             "Counterfeit Coin" => Card::Coin,
-            "Blackwater Cutlass" => Card::Cutlass,
-            "Mailbox Dancer" => Card::Dancer,
-            "Door of Shadows" => Card::Door,
-            "Evasion" => Card::Evasion,
-            "SI:7 Extortion" => Card::Extortion,
-            "Foxy Fraud" => Card::Foxy,
-            "Gone Fishin'" => Card::GoneFishin,
-            "Spectral Pillager" => Card::Pillager,
-            "Potion of Illusion" => Card::Potion,
-            "Scabbs Cutterbutter" => Card::Scabbs,
-            "Secret Passage" => Card::SecretPassage,
-            "Shadowstep" => Card::Shadowstep,
-            "Shroud of Concealment" => Card::Shroud,
-            "Spirit of the Shark" => Card::Shark,
-            "Swindle" => Card::Swindle,
-            "Tenwu of the Red Smoke" => Card::Tenwu,
             _ => {
                 println!("unknown card name: {}", s);
                 Card::Unknown
@@ -98,12 +99,25 @@ impl Card {
 
     pub fn from_card_id(card_id: &str) -> Self {
         match card_id {
+            "The Coin" => Card::Coin,
+            "Counterfeit Coin" => Card::Coin,
+            "Blackwater Cutlass" => Card::Cutlass,
+            "Mailbox Dancer" => Card::Dancer,
+            "Door of Shadows" => Card::Door,
             "LOOT_214" => Card::Evasion,
             "EX1_593" => Card::Extortion,
             "DMF_511" => Card::Foxy,
             "TSC_916" => Card::GoneFishin,
-            "CFM_630" => Card::Pillager,
+            "Spectral Pillager" => Card::Pillager,
+            "Potion of Illusion" => Card::Potion,
+            "CORE_EX1_145" => Card::Preparation,
+            "Scabbs Cutterbutter" => Card::Scabbs,
+            "Secret Passage" => Card::SecretPassage,
+            "Shadowstep" => Card::Shadowstep,
+            "Shroud of Concealment" => Card::Shroud,
+            "Spirit of the Shark" => Card::Shark,
             "DMF_515" => Card::Swindle,
+            "Tenwu of the Red Smoke" => Card::Tenwu,
             _ => {
                 println!("unknown card id: {}", card_id);
                 Card::Unknown

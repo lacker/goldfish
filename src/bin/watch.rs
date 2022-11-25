@@ -3,7 +3,7 @@
 use goldfish::card::Card;
 use goldfish::game::Game;
 use regex::Regex;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::thread;
 use std::time;
@@ -29,6 +29,7 @@ fn read_log() -> Result<LogData, std::io::Error> {
     };
 
     // Populate the id -> card_id map
+    // This sort of line happens
     let mut card_id_map: BTreeMap<i32, String> = BTreeMap::new();
     let card_id_re = Regex::new(r"^.*Updating Entity.* id=(\d+) .* CardID=(\w+).*$").unwrap();
     for line in lines.iter() {
@@ -56,13 +57,20 @@ fn read_log() -> Result<LogData, std::io::Error> {
     option_block.reverse();
 
     // Extract the hand
+    let mut seen_ids: BTreeSet<i32> = BTreeSet::new();
     let known_card_re =
         Regex::new(r"^.*entityName=([^=]+) id=(\d+) zone=(?:HAND|SETASIDE).*$").unwrap();
     let unknown_card_re =
         Regex::new(r"^.*option.*type=POWER.*entityName=UNKNOWN ENTITY.* id=(\d+).*$").unwrap();
     for line in option_block.iter() {
         if known_card_re.is_match(line) {
+            println!("{}", line);
             let caps = known_card_re.captures(line).unwrap();
+            let id = caps[2].parse::<i32>().unwrap();
+            if seen_ids.contains(&id) {
+                continue;
+            }
+            seen_ids.insert(id);
             log_data.hand.push(Card::from_name(&caps[1]));
         } else if unknown_card_re.is_match(line) {
             let caps = unknown_card_re.captures(line).unwrap();
