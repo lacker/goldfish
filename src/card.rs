@@ -108,7 +108,7 @@ impl Card {
             "SW_070" => Card::Dancer,
             "REV_938" => Card::Door,
             "LOOT_214" => Card::Evasion,
-            "EX1_593" => Card::Extortion,
+            "SW_412" => Card::Extortion,
             "DMF_511" => Card::Foxy,
             "TSC_916" => Card::GoneFishin,
             "ICC_910" => Card::Pillager,
