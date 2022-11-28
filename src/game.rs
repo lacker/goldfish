@@ -21,6 +21,7 @@ pub struct Game {
     next_scabbs: i32,            // number of stacks of the scabbs effect after this one
     pub deck: Vec<Card>,         // the cards left in the deck
     pub turn: i32,               // the current turn
+    prep_pending: bool,          // whether we have a preparation effect pending
 }
 
 pub struct Move {
@@ -77,6 +78,7 @@ impl Game {
             next_scabbs: 0,
             deck: STARTING_DECK.to_vec(),
             turn: 0,
+            prep_pending: false,
         }
     }
 
@@ -104,6 +106,9 @@ impl Game {
         let mut cost = card.cost() - self.scabbs * 3;
         if card.card.combo() {
             cost -= self.foxy * 2;
+        }
+        if card.card.spell() && self.prep_pending {
+            cost -= 2;
         }
         std::cmp::max(cost, 0)
     }
@@ -203,6 +208,8 @@ impl Game {
 
         if card.card.minion() {
             self.board.push(card.card);
+        } else if card.card.spell() {
+            self.prep_pending = false;
         }
 
         self.come_into_play(&card.card);
@@ -224,6 +231,7 @@ impl Game {
                     .collect();
                 self.add_card_instances_to_hand(cis.into_iter());
             }
+            Card::Preparation => self.prep_pending = true,
             Card::Shadowstep => {
                 let target_card = self.board.remove(m.target.unwrap());
                 let mut ci = CardInstance::new(&target_card);
