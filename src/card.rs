@@ -150,6 +150,32 @@ impl Card {
             Card::Pillager => true,
             Card::Scabbs => true,
             Card::Shark => true,
+            Card::Tenwu => true,
+            _ => false,
+        }
+    }
+
+    pub fn spell(&self) -> bool {
+        match self {
+            Card::BoneSpike => true,
+            Card::Coin => true,
+            Card::Door => true,
+            Card::Evasion => true,
+            Card::Extortion => true,
+            Card::GoneFishin => true,
+            Card::Potion => true,
+            Card::Preparation => true,
+            Card::SecretPassage => true,
+            Card::Shadowstep => true,
+            Card::Shroud => true,
+            Card::Swindle => true,
+            _ => false,
+        }
+    }
+
+    pub fn weapon(&self) -> bool {
+        match self {
+            Card::Cutlass => true,
             _ => false,
         }
     }
@@ -211,5 +237,30 @@ impl CardInstance {
             self.card.cost()
         };
         std::cmp::max(0, base - self.cost_reduction)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn one_type_per_card() {
+        for card in enum_iterator::all::<Card>() {
+            let mut types = 0;
+            if card.minion() {
+                types += 1;
+            }
+            if card.spell() {
+                types += 1;
+            }
+            if card.weapon() {
+                types += 1;
+            }
+            if card == Card::Unknown {
+                types += 1;
+            }
+            assert_eq!(types, 1, "card {} has bad types", card);
+        }
     }
 }
