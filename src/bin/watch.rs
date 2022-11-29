@@ -110,23 +110,28 @@ fn read_log() -> Result<LogData, std::io::Error> {
     Ok(log_data)
 }
 
-fn suggest(log_data: &LogData) {
-    println!("\nhand: {:?}", log_data.hand);
-    println!("mana: {}", log_data.mana);
-
+fn current_game(log_data: &LogData) -> Game {
     let mut game = Game::new();
     game.add_cards_to_hand(log_data.hand.clone().into_iter());
     game.mana = log_data.mana;
-    game.print_plan();
+    game
 }
 
 fn main() {
     println!("watching");
     let mut previous_last_option_line = 0;
+    let mut last_mana = 0;
     loop {
         if let Ok(log_data) = read_log() {
             if log_data.last_option_line > previous_last_option_line {
-                suggest(&log_data);
+                let game = current_game(&log_data);
+                if game.mana != last_mana {
+                    println!("\nhand: {:?}", log_data.hand);
+                    println!("mana: {}", log_data.mana);
+
+                    game.print_plan();
+                }
+                last_mana = game.mana;
             }
             previous_last_option_line = log_data.last_option_line;
         }
