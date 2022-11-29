@@ -3,6 +3,8 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fmt;
 
+pub const UNKNOWN_COST: i32 = 20;
+
 // All the cards we handle.
 // Sort by roughly the order that you expect to play cards, to help win search.
 #[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Sequence)]
@@ -140,7 +142,7 @@ impl Card {
             Card::Scabbs => 4,
             Card::Shark => 4,
             Card::Tenwu => 2,
-            _ => 20, // Just forbid casting unimplemented cards
+            _ => UNKNOWN_COST, // Just forbid casting unimplemented cards
         }
     }
 
@@ -216,6 +218,10 @@ impl fmt::Display for CardInstance {
         }
         if self.tenwu {
             f.write_str(" (tenwu)").unwrap();
+        }
+        if self.cost_reduction > 0 {
+            f.write_str(&format!(" (-{})", self.cost_reduction))
+                .unwrap();
         }
         Ok(())
     }

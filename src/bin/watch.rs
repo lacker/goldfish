@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use goldfish::card::Card;
+use goldfish::card::{Card, CardInstance, UNKNOWN_COST};
 use goldfish::game::Game;
 use regex::Regex;
 use std::collections::{BTreeMap, BTreeSet};
@@ -12,7 +12,7 @@ const FILENAME: &str = r"C:\Program Files (x86)\Hearthstone\Logs\Power.log";
 
 struct LogData {
     num_lines: usize,
-    hand: Vec<Card>,
+    hand: Vec<CardInstance>,
     last_option_line: usize,
     mana: i32,
     opponent_damage: i32,
@@ -34,13 +34,23 @@ fn read_log() -> Result<LogData, std::io::Error> {
     // Populate the id -> card_id map
     // This type of line happens whenever we draw a card, and perhaps at other times
     let mut card_id_map: BTreeMap<i32, String> = BTreeMap::new();
+
+    // Map id -> changed cost.
+    // This happens when we shadowstep, and perhaps other times.
+    let mut cost_map: BTreeMap<i32, i32> = BTreeMap::new();
+
     let card_id_re = Regex::new(r"^.*Updating Entity.* id=(\d+) .* CardID=(\w+).*$").unwrap();
     let damage_re = Regex::new(r"^.*cardId=HERO_.*player=2.*tag=DAMAGE value=(\d+).*$").unwrap();
     let armor_re = Regex::new(r"^.*cardId=HERO_.*player=2.*tag=ARMOR value=(\d+).*$").unwrap();
+    let cost_re =
+        Regex::new(r"^.*TAG_CHANGE.*id=(\d+).*player=1.*tag=COST value=(\d+).*$").unwrap();
+
     for line in lines.iter() {
         if line.contains("CREATE_GAME") {
             log_data.opponent_damage = 0;
             log_data.opponent_armor = 0;
+            card_id_map.clear();
+            cost_map.clear();
         }
         if let Some(captures) = card_id_re.captures(line) {
             let id = captures[1].parse::<i32>().unwrap();
@@ -52,6 +62,11 @@ fn read_log() -> Result<LogData, std::io::Error> {
         }
         if let Some(captures) = armor_re.captures(line) {
             log_data.opponent_armor = captures[1].parse::<i32>().unwrap();
+        }
+        if let Some(captures) = cost_re.captures(line) {
+            let id = captures[1].parse::<i32>().unwrap();
+            let cost = captures[2].parse::<i32>().unwrap();
+            cost_map.insert(id, cost);
         }
     }
 
@@ -78,32 +93,42 @@ fn read_log() -> Result<LogData, std::io::Error> {
     let unknown_card_re =
         Regex::new(r"^.*option.*type=POWER.*entityName=UNKNOWN ENTITY.* id=(\d+).*player=1.*$")
             .unwrap();
+
+    let mut handle_card = |id: i32, card: Card| {
+        if seen_ids.contains(&id) {
+            return;
+        }
+        seen_ids.insert(id);
+        let mut ci = CardInstance::new(&card);
+        match cost_map.get(&id) {
+            Some(cost) => {
+                if card.cost() != UNKNOWN_COST {
+                    ci.cost_reduction = card.cost() - cost;
+                }
+            }
+            None => (),
+        }
+        log_data.hand.push(ci);
+    };
+
     for line in option_block.iter() {
         if known_card_re.is_match(line) {
             // println!("{}", line);
             let caps = known_card_re.captures(line).unwrap();
-            let id = caps[2].parse::<i32>().unwrap();
-            if seen_ids.contains(&id) {
-                continue;
-            }
-            seen_ids.insert(id);
             let name = &caps[1];
+            let id = caps[2].parse::<i32>().unwrap();
             let c = Card::from_name(name);
-            log_data.hand.push(c);
+            handle_card(id, c);
         } else if unknown_card_re.is_match(line) {
             // println!("{}", line);
             let caps = unknown_card_re.captures(line).unwrap();
             let id = caps[1].parse::<i32>().unwrap();
-            if seen_ids.contains(&id) {
-                continue;
-            }
-            seen_ids.insert(id);
             if let Some(card_id) = card_id_map.get(&id) {
                 let c = Card::from_card_id(card_id);
                 if c == Card::Unknown {
-                    println!("unknown id : {} card id: {}", id, card_id);
+                    println!("unknown id: {} card id: {}", id, card_id);
                 }
-                log_data.hand.push(c);
+                handle_card(id, c);
             }
         }
     }
@@ -124,7 +149,7 @@ fn read_log() -> Result<LogData, std::io::Error> {
 
 fn current_game(log_data: &LogData) -> Game {
     let mut game = Game::new();
-    game.add_cards_to_hand(log_data.hand.clone().into_iter());
+    game.add_card_instances_to_hand(log_data.hand.clone().into_iter());
     game.mana = log_data.mana;
     game.life = 30 - log_data.opponent_damage + log_data.opponent_armor;
     game
@@ -139,7 +164,7 @@ fn main() {
             if log_data.last_option_line > previous_last_option_line {
                 let game = current_game(&log_data);
                 if game.mana != last_mana {
-                    println!("\nhand: {:?}", log_data.hand);
+                    println!("\nhand: {}", game.hand_string());
                     println!("mana: {}", log_data.mana);
                     println!("opponent life: {}", game.life);
                     game.print_plan();

@@ -123,7 +123,7 @@ impl Game {
         self.mana >= self.cost(index)
     }
 
-    fn add_card_instances_to_hand(&mut self, iter: impl Iterator<Item = CardInstance>) {
+    pub fn add_card_instances_to_hand(&mut self, iter: impl Iterator<Item = CardInstance>) {
         for ci in iter {
             if self.hand.len() >= 10 {
                 break;
@@ -133,7 +133,7 @@ impl Game {
         self.hand.sort();
     }
 
-    fn add_card_instance_to_hand(&mut self, ci: CardInstance) {
+    pub fn add_card_instance_to_hand(&mut self, ci: CardInstance) {
         self.add_card_instances_to_hand(iter::once(ci))
     }
 
