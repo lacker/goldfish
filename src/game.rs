@@ -319,7 +319,8 @@ impl Game {
         self.draw();
     }
 
-    pub fn print_plan(&self) {
+    // Returns whether we won or not.
+    pub fn print_plan(&self) -> bool {
         let plan = self.find_win();
         match plan {
             Plan::Win(moves) => {
@@ -329,13 +330,15 @@ impl Game {
                     println!("{}", clone.move_string(&m));
                     clone.make_move(&m);
                 }
-                return;
+                true
             }
             Plan::Lose => {
                 println!("cannot win");
+                false
             }
             Plan::Timeout => {
                 println!("timeout, no win found");
+                false
             }
         }
     }

@@ -15,9 +15,9 @@ struct LogData {
     hand: Vec<Card>,
     last_option_line: usize,
     mana: i32,
+    opponent_damage: i32,
 }
 
-// Prints out any lines past the previous number of lines
 fn read_log() -> Result<LogData, std::io::Error> {
     let file_data = fs::read_to_string(FILENAME)?;
     let lines: Vec<_> = file_data.lines().collect();
@@ -26,17 +26,22 @@ fn read_log() -> Result<LogData, std::io::Error> {
         hand: Vec::new(),
         last_option_line: 0,
         mana: 0,
+        opponent_damage: 0,
     };
 
     // Populate the id -> card_id map
     // This type of line happens whenever we draw a card, and perhaps at other times
     let mut card_id_map: BTreeMap<i32, String> = BTreeMap::new();
     let card_id_re = Regex::new(r"^.*Updating Entity.* id=(\d+) .* CardID=(\w+).*$").unwrap();
+    let damage_re = Regex::new(r"^.*cardId=HERO_.*player=2.*tag=DAMAGE value=(\d+).*$").unwrap();
     for line in lines.iter() {
         if let Some(captures) = card_id_re.captures(line) {
             let id = captures[1].parse::<i32>().unwrap();
             let card_id = &captures[2];
             card_id_map.insert(id, card_id.to_string());
+        }
+        if let Some(captures) = damage_re.captures(line) {
+            log_data.opponent_damage = captures[1].parse::<i32>().unwrap();
         }
     }
 
@@ -114,6 +119,7 @@ fn current_game(log_data: &LogData) -> Game {
     let mut game = Game::new();
     game.add_cards_to_hand(log_data.hand.clone().into_iter());
     game.mana = log_data.mana;
+    game.life = 30 - log_data.opponent_damage;
     game
 }
 
@@ -128,7 +134,7 @@ fn main() {
                 if game.mana != last_mana {
                     println!("\nhand: {:?}", log_data.hand);
                     println!("mana: {}", log_data.mana);
-
+                    println!("opponent life: {}", game.life);
                     game.print_plan();
                 }
                 last_mana = game.mana;

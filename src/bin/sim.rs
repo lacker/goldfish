@@ -5,7 +5,9 @@ fn main() {
     while game.turn < 10 {
         game.next_turn();
         println!("turn {}. hand = {}", game.turn, game.hand_string());
-        game.print_plan();
+        if game.print_plan() {
+            break;
+        }
         println!();
     }
 }
