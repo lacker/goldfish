@@ -89,9 +89,6 @@ fn read_log() -> Result<LogData, std::io::Error> {
             seen_ids.insert(id);
             let name = &caps[1];
             let c = Card::from_name(name);
-            if c == Card::Unknown {
-                println!("unknown card name: {}", name);
-            }
             log_data.hand.push(c);
         } else if unknown_card_re.is_match(line) {
             // println!("{}", line);

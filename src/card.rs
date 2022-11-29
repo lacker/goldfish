@@ -91,6 +91,7 @@ impl Card {
             return *card;
         }
         match s {
+            "Bananas" => Card::Unknown,
             "Counterfeit Coin" => Card::Coin,
             _ => {
                 println!("unknown card name: {}", s);
