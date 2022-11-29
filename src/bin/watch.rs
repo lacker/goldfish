@@ -16,6 +16,7 @@ struct LogData {
     last_option_line: usize,
     mana: i32,
     opponent_damage: i32,
+    opponent_armor: i32,
 }
 
 fn read_log() -> Result<LogData, std::io::Error> {
@@ -27,6 +28,7 @@ fn read_log() -> Result<LogData, std::io::Error> {
         last_option_line: 0,
         mana: 0,
         opponent_damage: 0,
+        opponent_armor: 0,
     };
 
     // Populate the id -> card_id map
@@ -34,7 +36,12 @@ fn read_log() -> Result<LogData, std::io::Error> {
     let mut card_id_map: BTreeMap<i32, String> = BTreeMap::new();
     let card_id_re = Regex::new(r"^.*Updating Entity.* id=(\d+) .* CardID=(\w+).*$").unwrap();
     let damage_re = Regex::new(r"^.*cardId=HERO_.*player=2.*tag=DAMAGE value=(\d+).*$").unwrap();
+    let armor_re = Regex::new(r"^.*cardId=HERO_.*player=2.*tag=ARMOR value=(\d+).*$").unwrap();
     for line in lines.iter() {
+        if line.contains("CREATE_GAME") {
+            log_data.opponent_damage = 0;
+            log_data.opponent_armor = 0;
+        }
         if let Some(captures) = card_id_re.captures(line) {
             let id = captures[1].parse::<i32>().unwrap();
             let card_id = &captures[2];
@@ -42,6 +49,9 @@ fn read_log() -> Result<LogData, std::io::Error> {
         }
         if let Some(captures) = damage_re.captures(line) {
             log_data.opponent_damage = captures[1].parse::<i32>().unwrap();
+        }
+        if let Some(captures) = armor_re.captures(line) {
+            log_data.opponent_armor = captures[1].parse::<i32>().unwrap();
         }
     }
 
@@ -119,7 +129,7 @@ fn current_game(log_data: &LogData) -> Game {
     let mut game = Game::new();
     game.add_cards_to_hand(log_data.hand.clone().into_iter());
     game.mana = log_data.mana;
-    game.life = 30 - log_data.opponent_damage;
+    game.life = 30 - log_data.opponent_damage + log_data.opponent_armor;
     game
 }
 
