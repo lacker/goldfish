@@ -107,6 +107,7 @@ impl Card {
     pub fn from_card_id(card_id: &str) -> Self {
         match card_id {
             "REV_939" => Card::BoneSpike,
+            "DMF_512" => Card::Cloak,
             "GAME_005" => Card::Coin,
             "CFM_630" => Card::Coin, // for Counterfeit Coin
             "DED_004" => Card::Cutlass,
