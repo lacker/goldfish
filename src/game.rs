@@ -24,7 +24,7 @@ pub struct Game {
     prep_pending: bool,          // whether we have a preparation effect pending
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Move {
     index: usize,          // which card in hand to play
     target: Option<usize>, // which card on the board to target
@@ -62,6 +62,9 @@ impl fmt::Display for Game {
         }
         if self.next_scabbs > 0 {
             writeln!(f, "next_scabbs: {}", self.next_scabbs)?;
+        }
+        if self.prep_pending {
+            writeln!(f, "prep_pending")?;
         }
         Ok(())
     }
@@ -192,26 +195,65 @@ impl Game {
         game
     }
 
+    // Play the first card in hand matching the provided card and target
+    pub fn play(&mut self, card: &Card, target: Option<&Card>) {
+        println!("play {} {:?}", card, target);
+        let hand_index = self
+            .hand
+            .iter()
+            .position(|c| c.card == *card)
+            .expect("card not in hand");
+        let move_target = match target {
+            Some(t) => Some(
+                self.board
+                    .iter()
+                    .position(|c| *c == *t)
+                    .expect("target not on board"),
+            ),
+            None => None,
+        };
+        let m = Move {
+            index: hand_index,
+            target: move_target,
+        };
+
+        // Check that m is in the list of possible moves
+        if !self.possible_moves().contains(&m) {
+            // print the board
+            println!("{}", self);
+            println!("possible moves: {:?}", self.possible_moves());
+            panic!("impossible move: {:?}", m);
+        }
+
+        self.make_move(&m);
+    }
+
     // Play the card at the given index in hand
     pub fn make_move(&mut self, m: &Move) {
         let card = self.hand[m.index];
         self.mana -= self.cost(m.index);
+        assert!(self.mana >= 0);
         self.hand.remove(m.index);
-        self.foxy = 0;
         self.scabbs = self.next_scabbs;
         self.next_scabbs = 0;
 
         if card.card == Card::Tenwu {
-            let target_card = self.board[m.target.unwrap()];
+            let target_index = m.target.unwrap();
+            let target_card = self.board[target_index];
             let mut ci = CardInstance::new(&target_card);
             ci.tenwu = true;
             self.add_card_instance_to_hand(ci);
+            self.board.remove(target_index);
         }
 
         if card.card.minion() {
             self.board.push(card.card);
         } else if card.card.spell() {
             self.prep_pending = false;
+        }
+
+        if card.card.combo() {
+            self.foxy = 0;
         }
 
         self.come_into_play(&card.card);
@@ -346,6 +388,15 @@ impl Game {
     }
 }
 
+// Expects that a win can be found with these parameters
+pub fn assert_win(mana: i32, life: i32, hand: Vec<Card>) {
+    let mut game = Game::new();
+    game.mana = mana;
+    game.life = life;
+    game.add_cards_to_hand(hand.into_iter());
+    assert_matches!(game.find_win(), Plan::Win(_));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -362,5 +413,162 @@ mod tests {
         assert!(c.cost() == 2);
         assert!(c.minion() == true);
         assert!(c.combo() == false);
+    }
+
+    #[test]
+    fn basic_foxy_win() {
+        let mut g: Game = Game::new();
+        g.mana = 4;
+        g.life = 30;
+        let hand = vec![
+            Card::Foxy,
+            Card::Shadowstep,
+            Card::Scabbs,
+            Card::Shark,
+            Card::Tenwu,
+            Card::Pillager,
+            Card::Pillager,
+        ];
+        g.add_cards_to_hand(hand.into_iter());
+        g.play(&Card::Foxy, None);
+        g.play(&Card::Shadowstep, Some(&Card::Foxy));
+        g.play(&Card::Foxy, None);
+        g.play(&Card::Scabbs, None);
+        g.play(&Card::Shark, None);
+        g.play(&Card::Tenwu, Some(&Card::Scabbs));
+        g.play(&Card::Scabbs, None);
+        g.play(&Card::Pillager, None);
+        g.play(&Card::Pillager, None);
+        assert!(g.life <= 0);
+    }
+
+    #[test]
+    fn find_basic_foxy_win() {
+        assert_win(
+            4,
+            30,
+            vec![
+                Card::Foxy,
+                Card::Shadowstep,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn pillager_missing() {
+        assert_win(
+            5,
+            34,
+            vec![
+                Card::Foxy,
+                Card::Shadowstep,
+                Card::Shadowstep,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn fox_scabbs_core() {
+        assert_win(
+            6,
+            22,
+            vec![
+                Card::Foxy,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn anti_renathal_win() {
+        let mut g: Game = Game::new();
+        g.mana = 7;
+        g.life = 44;
+        let hand = vec![
+            Card::Foxy,
+            Card::Shadowstep,
+            Card::Scabbs,
+            Card::Shark,
+            Card::Tenwu,
+            Card::Pillager,
+            Card::Pillager,
+        ];
+        g.add_cards_to_hand(hand.into_iter());
+        g.play(&Card::Foxy, None);
+        g.play(&Card::Scabbs, None);
+        g.play(&Card::Shark, None);
+        g.play(&Card::Tenwu, Some(&Card::Scabbs));
+        g.play(&Card::Shadowstep, Some(&Card::Tenwu));
+        g.play(&Card::Scabbs, None);
+        g.play(&Card::Pillager, None);
+        g.play(&Card::Pillager, None);
+        g.play(&Card::Tenwu, Some(&Card::Pillager));
+        g.play(&Card::Pillager, None);
+        assert!(g.life <= 0);
+    }
+
+    #[test]
+    fn find_anti_renathal_win() {
+        assert_win(
+            7,
+            44,
+            vec![
+                Card::Foxy,
+                Card::Shadowstep,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn find_druid_line() {
+        assert_win(
+            8,
+            68,
+            vec![
+                Card::Foxy,
+                Card::Shadowstep,
+                Card::Shadowstep,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn basic_dancer() {
+        assert_win(
+            4,
+            34,
+            vec![
+                Card::Coin,
+                Card::Dancer,
+                Card::Shadowstep,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Pillager,
+                Card::Pillager,
+            ],
+        )
     }
 }
