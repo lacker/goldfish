@@ -1,5 +1,5 @@
 use goldfish::card::Card;
-use goldfish::game::assert_win;
+use goldfish::game::assert_exact_win;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
@@ -8,7 +8,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 pub fn hard_foxy_examples(c: &mut Criterion) {
     c.bench_function("todo", |b| {
         b.iter(|| {
-            assert_win(
+            assert_exact_win(
                 6,
                 9,
                 vec![
