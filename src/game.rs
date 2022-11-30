@@ -24,11 +24,13 @@ pub struct Game {
     prep_pending: bool,          // whether we have a preparation effect pending
 }
 
+#[derive(Debug)]
 pub struct Move {
     index: usize,          // which card in hand to play
     target: Option<usize>, // which card on the board to target
 }
 
+#[derive(Debug)]
 pub enum Plan {
     Win(Vec<Move>),
     Lose,
