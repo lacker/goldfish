@@ -28,6 +28,7 @@ pub enum Card {
     Extortion,
     Preparation,
     BoneSpike,
+    Cloak,
     Unknown,
 }
 
@@ -63,6 +64,7 @@ impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
             Card::BoneSpike => "Serrated Bone Spike",
+            Card::Cloak => "Cloak of Shadows",
             Card::Coin => "The Coin",
             Card::Cutlass => "Blackwater Cutlass",
             Card::Dancer => "Mailbox Dancer",
@@ -134,12 +136,13 @@ impl Card {
     pub fn cost(&self) -> i32 {
         match self {
             Card::Coin => 0,
-            Card::Shadowstep => 0,
             Card::Dancer => 2,
+            Card::Extortion => 1,
             Card::Foxy => 2,
             Card::Pillager => 6,
             Card::Potion => 4,
             Card::Scabbs => 4,
+            Card::Shadowstep => 0,
             Card::Shark => 4,
             Card::Tenwu => 2,
             _ => UNKNOWN_COST, // Just forbid casting unimplemented cards
@@ -161,6 +164,7 @@ impl Card {
     pub fn spell(&self) -> bool {
         match self {
             Card::BoneSpike => true,
+            Card::Cloak => true,
             Card::Coin => true,
             Card::Door => true,
             Card::Evasion => true,
