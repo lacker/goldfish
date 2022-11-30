@@ -317,7 +317,7 @@ impl Game {
 
     // Returns a plan with reversed moves.
     fn find_win_helper(&self, start: Instant) -> Plan {
-        if start.elapsed().as_secs() > 5 {
+        if start.elapsed().as_secs() > 10 {
             return Plan::Timeout;
         }
         if self.is_win() {
@@ -388,13 +388,27 @@ impl Game {
     }
 }
 
-// Expects that a win can be found with these parameters
-pub fn assert_win(mana: i32, life: i32, hand: Vec<Card>) {
+// Expects that a win can be found with these parameters but not one more life
+pub fn assert_exact_win(mana: i32, life: i32, hand: Vec<Card>) {
     let mut game = Game::new();
     game.mana = mana;
     game.life = life;
     game.add_cards_to_hand(hand.into_iter());
     assert_matches!(game.find_win(), Plan::Win(_));
+    game.life += 1;
+    match game.find_win() {
+        Plan::Win(moves) => {
+            println!("game: {}", game);
+            for m in moves {
+                println!("{}", game.move_string(&m));
+                game.make_move(&m);
+                println!("mana: {}, life: {}", game.mana, game.life);
+            }
+            panic!("expected no win");
+        }
+        Plan::Lose => (),
+        Plan::Timeout => panic!("timeout in find_win"),
+    }
 }
 
 #[cfg(test)]
@@ -444,7 +458,7 @@ mod tests {
 
     #[test]
     fn find_basic_foxy_win() {
-        assert_win(
+        assert_exact_win(
             4,
             30,
             vec![
@@ -461,9 +475,9 @@ mod tests {
 
     #[test]
     fn pillager_missing() {
-        assert_win(
+        assert_exact_win(
             5,
-            34,
+            36,
             vec![
                 Card::Foxy,
                 Card::Shadowstep,
@@ -478,7 +492,7 @@ mod tests {
 
     #[test]
     fn fox_scabbs_core() {
-        assert_win(
+        assert_exact_win(
             6,
             22,
             vec![
@@ -522,7 +536,7 @@ mod tests {
 
     #[test]
     fn find_anti_renathal_win() {
-        assert_win(
+        assert_exact_win(
             7,
             44,
             vec![
@@ -539,9 +553,9 @@ mod tests {
 
     #[test]
     fn find_druid_line() {
-        assert_win(
+        assert_exact_win(
             8,
-            68,
+            72,
             vec![
                 Card::Foxy,
                 Card::Shadowstep,
@@ -557,7 +571,7 @@ mod tests {
 
     #[test]
     fn basic_dancer() {
-        assert_win(
+        assert_exact_win(
             4,
             34,
             vec![
@@ -568,6 +582,42 @@ mod tests {
                 Card::Shark,
                 Card::Pillager,
                 Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn potion_and_two_pillagers() {
+        assert_exact_win(
+            4,
+            54,
+            vec![
+                Card::Coin,
+                Card::Dancer,
+                Card::Shadowstep,
+                Card::Potion,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Pillager,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn potion_and_tenwu() {
+        assert_exact_win(
+            4,
+            62,
+            vec![
+                Card::Coin,
+                Card::Dancer,
+                Card::Shadowstep,
+                Card::Potion,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Pillager,
+                Card::Tenwu,
             ],
         )
     }
