@@ -7,7 +7,7 @@ pub const UNKNOWN_COST: i32 = 20;
 
 // All the cards we handle.
 // Sort by roughly the order that you expect to play cards, to help win search.
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Sequence)]
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Sequence)]
 pub enum Card {
     Coin,
     Shark,
@@ -207,7 +207,7 @@ impl Card {
 
 // Properties that apply to only the specific version of this card, in our hand.
 // This could extend to on-board properties later.
-#[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CardInstance {
     pub card: Card,
     pub potion: bool,

@@ -1,7 +1,10 @@
 #![allow(dead_code)]
 
 use rand;
+use std::collections::hash_map::DefaultHasher;
+use std::collections::BTreeMap;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::iter;
 use std::time::Instant;
 
@@ -9,7 +12,7 @@ use crate::card::Card;
 use crate::card::CardInstance;
 use crate::card::STARTING_DECK;
 
-#[derive(Clone)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Game {
     pub board: Vec<Card>,        // our side of the board
     pub hand: Vec<CardInstance>, // our hand
@@ -24,13 +27,13 @@ pub struct Game {
     prep_pending: bool,          // whether we have a preparation effect pending
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Move {
     index: usize,          // which card in hand to play
     target: Option<usize>, // which card on the board to target
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Plan {
     Win(Vec<Move>),
     Lose,
@@ -316,21 +319,34 @@ impl Game {
     }
 
     // Returns a plan with reversed moves.
-    fn find_win_helper(&self, start: Instant) -> Plan {
+    // cache contains a map from hash of a game state to a plan for it, also with reversed moves.
+    // We update cache as we go.
+    fn find_win_helper(&self, start: Instant, cache: &mut BTreeMap<u64, Plan>) -> Plan {
         if start.elapsed().as_secs() > 10 {
             return Plan::Timeout;
         }
         if self.is_win() {
             return Plan::Win(Vec::new());
         }
+
+        // Check if we already have a plan for this game state
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        let hash = hasher.finish();
+        if let Some(plan) = cache.get(&hash) {
+            return plan.clone();
+        }
+
         let possible = self.possible_moves();
         for m in possible {
             let mut clone = self.clone();
             clone.make_move(&m);
-            match clone.find_win_helper(start) {
+            match clone.find_win_helper(start, cache) {
                 Plan::Win(mut moves) => {
                     moves.push(m);
-                    return Plan::Win(moves);
+                    let plan = Plan::Win(moves);
+                    cache.insert(hash, plan.clone());
+                    return plan;
                 }
                 Plan::Lose => (),
                 Plan::Timeout => return Plan::Timeout,
@@ -338,13 +354,15 @@ impl Game {
         }
 
         // Our search is exhausted
+        cache.insert(hash, Plan::Lose);
         Plan::Lose
     }
 
     // Returns a plan with list of moves to win.
     pub fn find_win(&self) -> Plan {
         let start = Instant::now();
-        match self.find_win_helper(start) {
+        let mut cache = BTreeMap::new();
+        match self.find_win_helper(start, &mut cache) {
             Plan::Win(mut moves) => {
                 moves.reverse();
                 Plan::Win(moves)
