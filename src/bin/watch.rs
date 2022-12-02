@@ -18,6 +18,7 @@ struct LogData {
     opponent_damage: i32,
     opponent_armor: i32,
     last_create_game_line: usize,
+    renathal: bool,
 }
 
 fn read_log(last_create_game_line: usize) -> Result<LogData, std::io::Error> {
@@ -31,6 +32,7 @@ fn read_log(last_create_game_line: usize) -> Result<LogData, std::io::Error> {
         opponent_damage: 0,
         opponent_armor: 0,
         last_create_game_line,
+        renathal: false,
     };
 
     // Populate the id -> card_id map
@@ -52,6 +54,7 @@ fn read_log(last_create_game_line: usize) -> Result<LogData, std::io::Error> {
     let armor_re = Regex::new(r"^.*cardId=HERO_.*player=(\d+).*tag=ARMOR value=(\d+).*$").unwrap();
     let cost_re =
         Regex::new(r"^.*TAG_CHANGE.*id=(\d+).*player=(\d+).*tag=COST value=(\d+).*$").unwrap();
+    let renathal_re = Regex::new(r"^.*entityName=Prince Renathal.*tag=REVEALED.*$").unwrap();
 
     let skip_n = log_data.last_create_game_line;
     let enum_lines = || lines.iter().enumerate().skip(skip_n);
@@ -98,6 +101,9 @@ fn read_log(last_create_game_line: usize) -> Result<LogData, std::io::Error> {
             let id = captures[1].parse::<i32>().unwrap();
             let cost = captures[3].parse::<i32>().unwrap();
             cost_map.insert(id, cost);
+        }
+        if let Some(_) = renathal_re.captures(line) {
+            log_data.renathal = true;
         }
     }
 
@@ -182,6 +188,9 @@ fn current_game(log_data: &LogData) -> Game {
     game.add_card_instances_to_hand(log_data.hand.clone().into_iter());
     game.mana = log_data.mana;
     game.life = 30 - log_data.opponent_damage + log_data.opponent_armor;
+    if log_data.renathal {
+        game.life += 10;
+    }
     game
 }
 
