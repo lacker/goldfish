@@ -6,42 +6,58 @@ use std::fmt;
 pub const UNKNOWN_COST: i32 = 20;
 
 // All the cards we handle.
-// Sort by roughly the order that you expect to play cards, to help win search.
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Sequence)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Sequence)]
 pub enum Card {
-    Coin,
-    Shark,
-    Dancer,
-    Foxy,
-    Scabbs,
-    Pillager,
-    Potion,
-    Shadowstep,
-    Tenwu,
-    GoneFishin,
-    Shroud,
-    SecretPassage,
-    Swindle,
-    Evasion,
-    Door,
-    Cutlass,
-    Extortion,
-    Preparation,
     BoneSpike,
     Cloak,
+    Coin,
+    Cutlass,
+    Dancer,
+    Door,
+    Evasion,
+    Extortion,
+    Foxy,
+    GoneFishin,
+    Pillager,
+    Potion,
+    Preparation,
+    Scabbs,
+    SecretPassage,
+    Shadowstep,
+    Shark,
+    Shroud,
+    Swindle,
+    Tenwu,
     Unknown,
 }
 
-// Only the good cards, taken from:
-// https://www.vicioussyndicate.com/decks/pillager-rogue-4/
-pub const STARTING_DECK: &'static [Card] = &[
+// A Redditor named something like "Panda" recommended this, but I lost the link
+pub const PANDA_DECK: &'static [Card] = &[
     Card::Coin,
     Card::Coin,
+    Card::Preparation,
+    Card::Preparation,
     Card::Shadowstep,
     Card::Shadowstep,
+    Card::Cutlass,
+    Card::Cutlass,
+    Card::Door,
+    Card::Door,
+    Card::GoneFishin,
+    Card::GoneFishin,
+    Card::SecretPassage,
+    Card::SecretPassage,
+    Card::Extortion,
+    Card::Extortion,
+    Card::Evasion,
+    Card::Evasion,
     Card::Foxy,
-    Card::Dancer,
+    Card::Swindle,
+    Card::Swindle,
     Card::Tenwu,
+    Card::Shroud,
+    Card::Shroud,
+    Card::Cloak,
     Card::Potion,
     Card::Scabbs,
     Card::Shark,
@@ -217,12 +233,13 @@ impl Card {
 
 // Properties that apply to only the specific version of this card, in our hand.
 // This could extend to on-board properties later.
-#[derive(Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct CardInstance {
     pub card: Card,
-    pub potion: bool,
-    pub tenwu: bool,
-    pub cost_reduction: i32,
+    pub potion: bool,        // whether this card was created with potion
+    pub tenwu: bool,         // whether this card was bounced with tenwu
+    pub cost_reduction: i32, // other cost reduction
+    pub passage: bool,       // whether this card was drawn with Secret Passage
 }
 
 impl fmt::Display for CardInstance {
@@ -249,6 +266,7 @@ impl CardInstance {
             potion: false,
             tenwu: false,
             cost_reduction: 0,
+            passage: false,
         }
     }
 
@@ -284,5 +302,10 @@ mod tests {
             }
             assert_eq!(types, 1, "card {} has bad types", card);
         }
+    }
+
+    #[test]
+    fn deck_length() {
+        assert_eq!(PANDA_DECK.len(), 30);
     }
 }

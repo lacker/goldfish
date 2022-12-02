@@ -17,9 +17,10 @@ struct LogData {
     mana: i32,
     opponent_damage: i32,
     opponent_armor: i32,
+    last_create_game_line: usize,
 }
 
-fn read_log() -> Result<LogData, std::io::Error> {
+fn read_log(last_create_game_line: usize) -> Result<LogData, std::io::Error> {
     let file_data = fs::read_to_string(FILENAME)?;
     let lines: Vec<_> = file_data.lines().collect();
     let mut log_data: LogData = LogData {
@@ -29,6 +30,7 @@ fn read_log() -> Result<LogData, std::io::Error> {
         mana: 0,
         opponent_damage: 0,
         opponent_armor: 0,
+        last_create_game_line,
     };
 
     // Populate the id -> card_id map
@@ -45,12 +47,16 @@ fn read_log() -> Result<LogData, std::io::Error> {
     let cost_re =
         Regex::new(r"^.*TAG_CHANGE.*id=(\d+).*player=1.*tag=COST value=(\d+).*$").unwrap();
 
-    for line in lines.iter() {
+    let skip_n = log_data.last_create_game_line;
+    let enum_lines = || lines.iter().enumerate().skip(skip_n);
+
+    for (i, line) in enum_lines() {
         if line.contains("CREATE_GAME") {
             log_data.opponent_damage = 0;
             log_data.opponent_armor = 0;
             card_id_map.clear();
             cost_map.clear();
+            log_data.last_create_game_line = i;
         }
         if let Some(captures) = card_id_re.captures(line) {
             let id = captures[1].parse::<i32>().unwrap();
@@ -73,7 +79,7 @@ fn read_log() -> Result<LogData, std::io::Error> {
     // Find the last option block
     let mut option_block: Vec<String> = Vec::new();
     let option_re = Regex::new(r"^.*GameState.DebugPrintOptions.*$").unwrap();
-    for (i, line) in lines.iter().enumerate().rev() {
+    for (i, line) in enum_lines().rev() {
         if option_re.is_match(line) {
             if option_block.is_empty() {
                 log_data.last_option_line = i;
@@ -137,7 +143,7 @@ fn read_log() -> Result<LogData, std::io::Error> {
     let mana_re =
         Regex::new(r"^.*DebugPrintPower.*TAG_CHANGE Entity=lacker.*tag=RESOURCES value=(\d+).*$")
             .unwrap();
-    for line in lines {
+    for (_, line) in enum_lines() {
         if mana_re.is_match(line) {
             let caps = mana_re.captures(line).unwrap();
             log_data.mana = caps[1].parse().unwrap();
@@ -158,9 +164,10 @@ fn current_game(log_data: &LogData) -> Game {
 fn main() {
     println!("watching");
     let mut previous_last_option_line = 0;
+    let mut previous_last_create_game_line = 0;
     let mut last_mana = 0;
     loop {
-        if let Ok(log_data) = read_log() {
+        if let Ok(log_data) = read_log(previous_last_create_game_line) {
             if log_data.last_option_line > previous_last_option_line {
                 let game = current_game(&log_data);
                 if game.mana != last_mana {
@@ -172,6 +179,7 @@ fn main() {
                 last_mana = game.mana;
             }
             previous_last_option_line = log_data.last_option_line;
+            previous_last_create_game_line = log_data.last_create_game_line;
         }
         thread::sleep(time::Duration::from_secs(1));
     }

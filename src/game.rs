@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use rand;
-use rand::seq::IteratorRandom;
+use rand::seq::{IteratorRandom, SliceRandom};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -11,27 +11,28 @@ use std::time::Instant;
 
 use crate::card::Card;
 use crate::card::CardInstance;
-use crate::card::STARTING_DECK;
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Game {
-    pub board: Vec<Card>,        // our side of the board
-    pub hand: Vec<CardInstance>, // our hand
-    pub life: i32,               // the opponent's life
-    pub mana: i32,               // our current mana
-    storm: i32,                  // number of things played this turn
-    foxy: i32,                   // number of stacks of the foxy effect
-    scabbs: i32,                 // number of stacks of the scabbs effect
-    next_scabbs: i32,            // number of stacks of the scabbs effect after this one
-    pub deck: Vec<Card>,         // the cards left in the deck
-    pub turn: i32,               // the current turn
-    prep_pending: bool,          // whether we have a preparation effect pending
+    pub board: Vec<Card>,           // our side of the board
+    pub hand: Vec<CardInstance>,    // our hand
+    pub passage: Vec<CardInstance>, // cards we've set aside with Secret Passage
+    pub life: i32,                  // the opponent's life
+    pub mana: i32,                  // our current mana
+    storm: i32,                     // number of things played this turn
+    foxy: i32,                      // number of stacks of the foxy effect
+    scabbs: i32,                    // number of stacks of the scabbs effect
+    next_scabbs: i32,               // number of stacks of scabbs effect after this one
+    pub deck: Vec<Card>,            // the cards left in the deck
+    pub turn: i32,                  // the current turn
+    prep_pending: bool,             // whether we have a preparation effect pending
+    pub fish: Vec<Card>,            // the cards we can select for the pending Go Fishin'
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Move {
-    index: usize,          // which card in hand to play
-    target: Option<usize>, // which card on the board to target
+    index: usize,          // which card in hand to play, or which "fish" to select
+    target: Option<usize>, // which card on the board to target, if any
 }
 
 #[derive(Clone, Debug)]
@@ -88,15 +89,17 @@ impl Game {
         Self {
             board: Vec::new(),
             hand: Vec::new(),
+            passage: Vec::new(),
             life: 30,
             mana: 0,
             storm: 0,
             foxy: 0,
             scabbs: 0,
             next_scabbs: 0,
-            deck: STARTING_DECK.to_vec(),
+            deck: Vec::new(),
             turn: 0,
             prep_pending: false,
+            fish: Vec::new(),
         }
     }
 
@@ -148,7 +151,6 @@ impl Game {
             }
             self.hand.push(ci);
         }
-        self.hand.sort();
     }
 
     pub fn add_card_instance_to_hand(&mut self, ci: CardInstance) {
@@ -205,6 +207,10 @@ impl Game {
         self.draw_from(|c| c.spell())
     }
 
+    fn draw_specific(&mut self, card: &Card) -> bool {
+        self.draw_from(|c| c == card)
+    }
+
     pub fn new_going_first() -> Self {
         let mut game = Self::new();
         game.draw();
@@ -256,8 +262,15 @@ impl Game {
         self.make_move(&m);
     }
 
-    // Play the card at the given index in hand
+    // Play the given Move
     pub fn make_move(&mut self, m: &Move) {
+        if !self.fish.is_empty() {
+            let card = self.fish[m.index];
+            self.draw_specific(&card);
+            self.fish.clear();
+            return;
+        }
+
         let card = self.hand[m.index];
         self.mana -= self.cost(m.index);
         assert!(self.mana >= 0);
@@ -337,13 +350,79 @@ impl Game {
                     None => (),
                 }
             }
+            Card::GoneFishin => {
+                if self.deck.len() <= 3 {
+                    self.fish = self.deck.clone();
+                } else {
+                    let mut rng = &mut rand::thread_rng();
+                    self.fish = self.deck.choose_multiple(&mut rng, 3).cloned().collect();
+                }
+            }
+            Card::SecretPassage => {
+                self.passage.extend(self.hand.iter());
+                self.hand = vec![];
+                self.draw();
+                self.draw();
+                self.draw();
+                self.draw();
+                for c in &mut self.hand {
+                    c.passage = true;
+                }
+            }
             _ => (),
         }
 
         self.storm += 1
     }
 
+    fn can_end_turn(&self) -> bool {
+        self.fish.is_empty()
+    }
+
+    // Ends turn and starts the next one
+    fn end_turn(&mut self) {
+        assert!(self.can_end_turn());
+        for c in &mut self.hand {
+            c.tenwu = false;
+        }
+
+        // This might not put the cards in the right order when we play
+        // Secret Passage multiple times
+        let mut new_hand: Vec<CardInstance> = vec![];
+        for ci in self.hand.iter().chain(self.passage.iter()) {
+            if ci.passage {
+                self.deck.push(ci.card);
+            } else {
+                new_hand.push(*ci);
+            }
+        }
+        self.hand = new_hand;
+        self.passage = vec![];
+
+        self.foxy = 0;
+        self.scabbs = 0;
+        self.next_scabbs = 0;
+        self.prep_pending = false;
+        self.storm = 0;
+        self.turn += 1;
+        self.mana = self.turn;
+
+        self.draw();
+    }
+
     fn possible_moves(&self) -> Vec<Move> {
+        if !self.fish.is_empty() {
+            // Return a move for each index in fish
+            return self
+                .fish
+                .iter()
+                .enumerate()
+                .map(|(i, _)| Move {
+                    index: i,
+                    target: None,
+                })
+                .collect();
+        }
         let mut answer = Vec::new();
         for (index, ci) in self.hand.iter().enumerate() {
             if !self.can_play(index) {
@@ -371,6 +450,9 @@ impl Game {
     }
 
     fn is_deterministic(&self, m: &Move) -> bool {
+        if !self.fish.is_empty() {
+            return true;
+        }
         let card = self.hand[m.index];
         match card.card {
             Card::GoneFishin => false,
