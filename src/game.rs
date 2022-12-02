@@ -475,56 +475,6 @@ mod tests {
     }
 
     #[test]
-    fn find_basic_foxy_win() {
-        assert_exact_win(
-            4,
-            30,
-            vec![
-                Card::Foxy,
-                Card::Shadowstep,
-                Card::Scabbs,
-                Card::Shark,
-                Card::Tenwu,
-                Card::Pillager,
-                Card::Pillager,
-            ],
-        )
-    }
-
-    #[test]
-    fn pillager_missing() {
-        assert_exact_win(
-            5,
-            36,
-            vec![
-                Card::Foxy,
-                Card::Shadowstep,
-                Card::Shadowstep,
-                Card::Scabbs,
-                Card::Shark,
-                Card::Tenwu,
-                Card::Pillager,
-            ],
-        )
-    }
-
-    #[test]
-    fn fox_scabbs_core() {
-        assert_exact_win(
-            6,
-            22,
-            vec![
-                Card::Foxy,
-                Card::Scabbs,
-                Card::Shark,
-                Card::Tenwu,
-                Card::Pillager,
-                Card::Pillager,
-            ],
-        )
-    }
-
-    #[test]
     fn anti_renathal_win() {
         let mut g: Game = Game::new();
         g.mana = 7;
@@ -552,12 +502,15 @@ mod tests {
         assert!(g.life <= 0);
     }
 
+    // Keep these tests sorted by mana, then life
+
     #[test]
-    fn find_anti_renathal_win() {
+    fn t3_kill() {
         assert_exact_win(
-            7,
-            44,
+            3,
+            34,
             vec![
+                Card::Coin,
                 Card::Foxy,
                 Card::Shadowstep,
                 Card::Scabbs,
@@ -570,13 +523,12 @@ mod tests {
     }
 
     #[test]
-    fn find_druid_line() {
+    fn find_basic_foxy_win() {
         assert_exact_win(
-            8,
-            72,
+            4,
+            30,
             vec![
                 Card::Foxy,
-                Card::Shadowstep,
                 Card::Shadowstep,
                 Card::Scabbs,
                 Card::Shark,
@@ -636,6 +588,161 @@ mod tests {
                 Card::Shark,
                 Card::Pillager,
                 Card::Tenwu,
+            ],
+        )
+    }
+
+    #[test]
+    fn shark_missing() {
+        assert_exact_win(
+            5,
+            28,
+            vec![
+                Card::Coin,
+                Card::Dancer,
+                Card::Shadowstep,
+                Card::Scabbs,
+                Card::Tenwu,
+                Card::Pillager,
+                Card::Potion,
+            ],
+        )
+    }
+
+    #[test]
+    fn basic_foxy_analog() {
+        assert_exact_win(
+            5,
+            34,
+            vec![
+                Card::Coin,
+                Card::Dancer,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn pillager_missing_with_foxy() {
+        assert_exact_win(
+            5,
+            36,
+            vec![
+                Card::Foxy,
+                Card::Shadowstep,
+                Card::Shadowstep,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn pillager_missing_with_dancer() {
+        assert_exact_win(
+            5,
+            36,
+            vec![
+                Card::Coin,
+                Card::Shadowstep,
+                Card::Tenwu,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Dancer,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn free_card() {
+        assert_exact_win(
+            5,
+            46,
+            vec![
+                Card::Coin,
+                Card::Cloak,
+                Card::Shadowstep,
+                Card::Potion,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Dancer,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn fox_scabbs_core() {
+        assert_exact_win(
+            6,
+            22,
+            vec![
+                Card::Foxy,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn advanced_foxy_analog() {
+        assert_exact_win(
+            6,
+            62,
+            vec![
+                Card::Coin,
+                Card::Dancer,
+                Card::Scabbs,
+                Card::Shadowstep,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn find_anti_renathal_win() {
+        assert_exact_win(
+            7,
+            44,
+            vec![
+                Card::Foxy,
+                Card::Shadowstep,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+                Card::Pillager,
+            ],
+        )
+    }
+
+    #[test]
+    fn find_druid_line() {
+        assert_exact_win(
+            8,
+            72,
+            vec![
+                Card::Foxy,
+                Card::Shadowstep,
+                Card::Shadowstep,
+                Card::Scabbs,
+                Card::Shark,
+                Card::Tenwu,
+                Card::Pillager,
+                Card::Pillager,
             ],
         )
     }

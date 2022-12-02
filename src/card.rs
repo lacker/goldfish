@@ -136,8 +136,10 @@ impl Card {
 
     pub fn cost(&self) -> i32 {
         match self {
+            Card::Cloak => 4,
             Card::Coin => 0,
             Card::Dancer => 2,
+            Card::Evasion => 2,
             Card::Extortion => 1,
             Card::Foxy => 2,
             Card::Pillager => 6,
