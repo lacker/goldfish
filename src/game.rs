@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use rand;
+use rand::seq::IteratorRandom;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -38,6 +39,15 @@ pub enum Plan {
     Win(Vec<Move>),
     Lose,
     Timeout,
+}
+
+// Return a random index satisfying the predicate, or None if none does
+fn random_index_where<T>(v: &Vec<T>, f: impl Fn(&T) -> bool) -> Option<usize> {
+    let mut rng = rand::thread_rng();
+    match v.iter().enumerate().filter(|(_, x)| f(x)).choose(&mut rng) {
+        Some((i, _)) => Some(i),
+        None => None,
+    }
 }
 
 impl fmt::Display for Game {
@@ -169,15 +179,30 @@ impl Game {
         }
     }
 
+    // Draws a random card obeying the given predicate
+    // Returns whether we succeeded
+    fn draw_from(&mut self, pred: impl Fn(&Card) -> bool) -> bool {
+        match random_index_where(&self.deck, |c| pred(c)) {
+            Some(i) => {
+                let card = self.deck.remove(i);
+                self.add_card_to_hand(&card);
+                true
+            }
+            None => false,
+        }
+    }
+
     // Draws one random card into our hand
     fn draw(&mut self) -> bool {
-        if self.deck.is_empty() {
-            return false;
-        }
-        let i = rand::random::<usize>() % self.deck.len();
-        let card = self.deck.remove(i);
-        self.add_card_to_hand(&card);
-        true
+        self.draw_from(|_| true)
+    }
+
+    fn draw_minion(&mut self) -> bool {
+        self.draw_from(|c| c.minion())
+    }
+
+    fn draw_spell(&mut self) -> bool {
+        self.draw_from(|c| c.spell())
     }
 
     pub fn new_going_first() -> Self {
@@ -285,6 +310,33 @@ impl Game {
                 ci.cost_reduction = 2;
                 self.add_card_instance_to_hand(ci);
             }
+            Card::Shroud => {
+                self.draw_minion();
+                self.draw_minion();
+            }
+            Card::Swindle => {
+                self.draw_spell();
+                if self.storm > 0 {
+                    self.draw_minion();
+                }
+            }
+            Card::Door => {
+                self.draw_spell();
+            }
+            Card::Extortion => {
+                self.draw();
+            }
+            Card::Cutlass => {
+                self.draw();
+                match random_index_where::<CardInstance>(&self.hand, |c| {
+                    c.card.spell() && c.cost() > 0
+                }) {
+                    Some(i) => {
+                        self.hand[i].cost_reduction += 1;
+                    }
+                    None => (),
+                }
+            }
             _ => (),
         }
 
@@ -314,6 +366,24 @@ impl Game {
         answer
     }
 
+    fn minions_in_deck(&self) -> usize {
+        self.deck.iter().filter(|c| c.minion()).count()
+    }
+
+    fn is_deterministic(&self, m: &Move) -> bool {
+        let card = self.hand[m.index];
+        match card.card {
+            Card::GoneFishin => false,
+            Card::SecretPassage => false,
+            Card::Swindle => false,
+            Card::Door => false,
+            Card::Cutlass => false,
+            Card::Extortion => false,
+            Card::Shroud => self.minions_in_deck() <= 2,
+            _ => true,
+        }
+    }
+
     fn is_win(&self) -> bool {
         self.life <= 0
     }
@@ -321,7 +391,11 @@ impl Game {
     // Returns a plan with reversed moves.
     // cache contains a map from hash of a game state to a plan for it, also with reversed moves.
     // We update cache as we go.
-    fn find_win_helper(&self, start: Instant, cache: &mut BTreeMap<u64, Plan>) -> Plan {
+    fn find_deterministic_win_helper(
+        &self,
+        start: Instant,
+        cache: &mut BTreeMap<u64, Plan>,
+    ) -> Plan {
         if start.elapsed().as_secs() > 10 {
             return Plan::Timeout;
         }
@@ -339,9 +413,12 @@ impl Game {
 
         let possible = self.possible_moves();
         for m in possible {
+            if !self.is_deterministic(&m) {
+                continue;
+            }
             let mut clone = self.clone();
             clone.make_move(&m);
-            match clone.find_win_helper(start, cache) {
+            match clone.find_deterministic_win_helper(start, cache) {
                 Plan::Win(mut moves) => {
                     moves.push(m);
                     let plan = Plan::Win(moves);
@@ -359,10 +436,10 @@ impl Game {
     }
 
     // Returns a plan with list of moves to win.
-    pub fn find_win(&self) -> Plan {
+    pub fn find_deterministic_win(&self) -> Plan {
         let start = Instant::now();
         let mut cache = BTreeMap::new();
-        match self.find_win_helper(start, &mut cache) {
+        match self.find_deterministic_win_helper(start, &mut cache) {
             Plan::Win(mut moves) => {
                 moves.reverse();
                 Plan::Win(moves)
@@ -383,7 +460,7 @@ impl Game {
 
     // Returns whether we won or not.
     pub fn print_plan(&self) -> bool {
-        let plan = self.find_win();
+        let plan = self.find_deterministic_win();
         match plan {
             Plan::Win(moves) => {
                 println!("win found:");
@@ -407,14 +484,15 @@ impl Game {
 }
 
 // Expects that a win can be found with these parameters but not one more life
-pub fn assert_exact_win(mana: i32, life: i32, hand: Vec<Card>) {
+pub fn assert_exact_win_with_deck(mana: i32, life: i32, hand: Vec<Card>, deck: Vec<Card>) {
     let mut game = Game::new();
     game.mana = mana;
     game.life = life;
     game.add_cards_to_hand(hand.into_iter());
-    assert_matches!(game.find_win(), Plan::Win(_));
+    game.deck = deck;
+    assert_matches!(game.find_deterministic_win(), Plan::Win(_));
     game.life += 1;
-    match game.find_win() {
+    match game.find_deterministic_win() {
         Plan::Win(moves) => {
             println!("game: {}", game);
             for m in moves {
@@ -427,6 +505,10 @@ pub fn assert_exact_win(mana: i32, life: i32, hand: Vec<Card>) {
         Plan::Lose => (),
         Plan::Timeout => panic!("timeout in find_win"),
     }
+}
+
+pub fn assert_exact_win(mana: i32, life: i32, hand: Vec<Card>) {
+    assert_exact_win_with_deck(mana, life, hand, Vec::new());
 }
 
 #[cfg(test)]
@@ -675,6 +757,24 @@ mod tests {
                 Card::Dancer,
                 Card::Pillager,
             ],
+        )
+    }
+
+    #[test]
+    fn using_shroud() {
+        assert_exact_win_with_deck(
+            5,
+            50,
+            vec![
+                Card::Coin,
+                Card::Shroud,
+                Card::Shadowstep,
+                Card::Scabbs,
+                Card::Dancer,
+                Card::Tenwu,
+                Card::Pillager,
+            ],
+            vec![Card::Shark, Card::Pillager, Card::Coin],
         )
     }
 

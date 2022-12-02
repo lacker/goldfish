@@ -136,19 +136,27 @@ impl Card {
 
     pub fn cost(&self) -> i32 {
         match self {
+            Card::BoneSpike => 2,
             Card::Cloak => 4,
             Card::Coin => 0,
+            Card::Cutlass => 1,
             Card::Dancer => 2,
+            Card::Door => 1,
             Card::Evasion => 2,
             Card::Extortion => 1,
             Card::Foxy => 2,
+            Card::GoneFishin => 1,
             Card::Pillager => 6,
             Card::Potion => 4,
+            Card::Preparation => 0,
             Card::Scabbs => 4,
+            Card::SecretPassage => 1,
             Card::Shadowstep => 0,
             Card::Shark => 4,
+            Card::Shroud => 3,
+            Card::Swindle => 2,
             Card::Tenwu => 2,
-            _ => UNKNOWN_COST, // Just forbid casting unimplemented cards
+            Card::Unknown => UNKNOWN_COST,
         }
     }
 
