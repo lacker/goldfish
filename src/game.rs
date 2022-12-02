@@ -19,7 +19,7 @@ pub struct Game {
     pub passage: Vec<CardInstance>, // cards we've set aside with Secret Passage
     pub life: i32,                  // the opponent's life
     pub mana: i32,                  // our current mana
-    storm: i32,                     // number of things played this turn
+    pub storm: i32,                 // number of things played this turn
     foxy: i32,                      // number of stacks of the foxy effect
     scabbs: i32,                    // number of stacks of the scabbs effect
     next_scabbs: i32,               // number of stacks of scabbs effect after this one
@@ -29,9 +29,9 @@ pub struct Game {
     pub fish: Vec<Card>,            // the cards we can select for the pending Go Fishin'
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Move {
-    index: usize,          // which card in hand to play, or which "fish" to select
+    pub index: usize,      // which card in hand to play, or which "fish" to select
     target: Option<usize>, // which card on the board to target, if any
 }
 
@@ -211,16 +211,18 @@ impl Game {
         self.draw_from(|c| c == card)
     }
 
-    pub fn new_going_first() -> Self {
+    pub fn new_going_first(deck: &[Card]) -> Self {
         let mut game = Self::new();
+        game.deck = deck.to_vec();
         game.draw();
         game.draw();
         game.draw();
         game
     }
 
-    pub fn new_going_second() -> Self {
+    pub fn new_going_second(deck: &[Card]) -> Self {
         let mut game = Self::new();
+        game.deck = deck.to_vec();
         game.draw();
         game.draw();
         game.draw();
@@ -375,12 +377,12 @@ impl Game {
         self.storm += 1
     }
 
-    fn can_end_turn(&self) -> bool {
+    pub fn can_end_turn(&self) -> bool {
         self.fish.is_empty()
     }
 
     // Ends turn and starts the next one
-    fn end_turn(&mut self) {
+    pub fn end_turn(&mut self) {
         assert!(self.can_end_turn());
         for c in &mut self.hand {
             c.tenwu = false;
@@ -405,12 +407,12 @@ impl Game {
         self.prep_pending = false;
         self.storm = 0;
         self.turn += 1;
-        self.mana = self.turn;
+        self.mana = std::cmp::min(10, self.turn);
 
         self.draw();
     }
 
-    fn possible_moves(&self) -> Vec<Move> {
+    pub fn possible_moves(&self) -> Vec<Move> {
         if !self.fish.is_empty() {
             // Return a move for each index in fish
             return self
@@ -530,18 +532,8 @@ impl Game {
         }
     }
 
-    pub fn next_turn(&mut self) {
-        self.turn += 1;
-        self.mana = std::cmp::min(self.turn, 10);
-        self.storm = 0;
-        for ci in self.hand.iter_mut() {
-            ci.tenwu = false;
-        }
-        self.draw();
-    }
-
     // Returns whether we won or not.
-    pub fn print_plan(&self) -> bool {
+    pub fn print_deterministic_win(&self) -> bool {
         let plan = self.find_deterministic_win();
         match plan {
             Plan::Win(moves) => {
