@@ -96,9 +96,7 @@ fn read_log(last_create_game_line: usize) -> Result<LogData, std::io::Error> {
     let mut seen_ids: BTreeSet<i32> = BTreeSet::new();
     let known_card_re =
         Regex::new(r"^.*entityName=([^=]+) id=(\d+) zone=(?:HAND|SETASIDE).*$").unwrap();
-    let unknown_card_re =
-        Regex::new(r"^.*option.*type=POWER.*entityName=UNKNOWN ENTITY.* id=(\d+).*player=1.*$")
-            .unwrap();
+    let unknown_card_re = Regex::new(r"^.*option.*type=POWER.* id=(\d+).*player=1.*$").unwrap();
 
     let mut handle_card = |id: i32, card: Card| {
         if seen_ids.contains(&id) {
@@ -119,14 +117,12 @@ fn read_log(last_create_game_line: usize) -> Result<LogData, std::io::Error> {
 
     for line in option_block.iter() {
         if known_card_re.is_match(line) {
-            // println!("{}", line);
             let caps = known_card_re.captures(line).unwrap();
             let name = &caps[1];
             let id = caps[2].parse::<i32>().unwrap();
             let c = Card::from_name(name);
             handle_card(id, c);
         } else if unknown_card_re.is_match(line) {
-            // println!("{}", line);
             let caps = unknown_card_re.captures(line).unwrap();
             let id = caps[1].parse::<i32>().unwrap();
             if let Some(card_id) = card_id_map.get(&id) {
