@@ -495,6 +495,12 @@ impl Game {
         self.life <= 0
     }
 
+    fn hash_value(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
+    }
+
     // Returns a plan with reversed moves.
     // cache contains a map from hash of a game state to a plan for it, also with reversed moves.
     // We update cache as we go.
@@ -512,9 +518,7 @@ impl Game {
         }
 
         // Check if we already have a plan for this game state
-        let mut hasher = DefaultHasher::new();
-        self.hash(&mut hasher);
-        let hash = hasher.finish();
+        let hash = self.hash_value();
         if let Some(plan) = cache.get(&hash) {
             return plan.clone();
         }
