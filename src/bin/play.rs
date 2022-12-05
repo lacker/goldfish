@@ -15,7 +15,7 @@ fn main() {
     loop {
         println!("\nturn {}", game.turn);
         println!("{}", game);
-        if game.print_deterministic_win() {
+        if game.print_deterministic_win(5) {
             break;
         }
 

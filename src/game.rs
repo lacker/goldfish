@@ -194,6 +194,19 @@ impl Game {
         }
     }
 
+    // Draws the first card obeying the given predicate
+    // Returns whether we succeeded
+    fn draw_first(&mut self, pred: impl Fn(&Card) -> bool) -> bool {
+        match self.deck.iter().position(|c| pred(c)) {
+            Some(i) => {
+                let card = self.deck.remove(i);
+                self.add_card_to_hand(&card);
+                true
+            }
+            None => false,
+        }
+    }
+
     // Draws one random card into our hand
     fn draw(&mut self) -> bool {
         self.draw_from(|_| true)
@@ -201,6 +214,10 @@ impl Game {
 
     fn draw_minion(&mut self) -> bool {
         self.draw_from(|c| c.minion())
+    }
+
+    fn draw_first_minion(&mut self) -> bool {
+        self.draw_first(|c| c.minion())
     }
 
     fn draw_spell(&mut self) -> bool {
@@ -326,8 +343,14 @@ impl Game {
                 self.add_card_instance_to_hand(ci);
             }
             Card::Shroud => {
-                self.draw_minion();
-                self.draw_minion();
+                if self.minions_in_deck() <= 2 {
+                    // We want to do this deterministically
+                    self.draw_first_minion();
+                    self.draw_first_minion();
+                } else {
+                    self.draw_minion();
+                    self.draw_minion();
+                }
             }
             Card::Swindle => {
                 self.draw_spell();
@@ -478,9 +501,10 @@ impl Game {
     fn find_deterministic_win_helper(
         &self,
         start: Instant,
+        time_limit: u64,
         cache: &mut BTreeMap<u64, Plan>,
     ) -> Plan {
-        if start.elapsed().as_secs() > 10 {
+        if start.elapsed().as_secs() > time_limit {
             return Plan::Timeout;
         }
         if self.is_win() {
@@ -502,7 +526,7 @@ impl Game {
             }
             let mut clone = self.clone();
             clone.make_move(&m);
-            match clone.find_deterministic_win_helper(start, cache) {
+            match clone.find_deterministic_win_helper(start, time_limit, cache) {
                 Plan::Win(mut moves) => {
                     moves.push(m);
                     let plan = Plan::Win(moves);
@@ -520,10 +544,10 @@ impl Game {
     }
 
     // Returns a plan with list of moves to win.
-    pub fn find_deterministic_win(&self) -> Plan {
+    pub fn find_deterministic_win(&self, time_limit: u64) -> Plan {
         let start = Instant::now();
         let mut cache = BTreeMap::new();
-        match self.find_deterministic_win_helper(start, &mut cache) {
+        match self.find_deterministic_win_helper(start, time_limit, &mut cache) {
             Plan::Win(mut moves) => {
                 moves.reverse();
                 Plan::Win(moves)
@@ -533,8 +557,8 @@ impl Game {
     }
 
     // Returns whether we won or not.
-    pub fn print_deterministic_win(&self) -> bool {
-        let plan = self.find_deterministic_win();
+    pub fn print_deterministic_win(&self, time_limit: u64) -> bool {
+        let plan = self.find_deterministic_win(time_limit);
         match plan {
             Plan::Win(moves) => {
                 println!("win found:");
@@ -564,9 +588,9 @@ pub fn assert_exact_win_with_deck(mana: i32, life: i32, hand: Vec<Card>, deck: V
     game.life = life;
     game.add_cards_to_hand(hand.into_iter());
     game.deck = deck;
-    assert_matches!(game.find_deterministic_win(), Plan::Win(_));
+    assert_matches!(game.find_deterministic_win(1), Plan::Win(_));
     game.life += 1;
-    match game.find_deterministic_win() {
+    match game.find_deterministic_win(1) {
         Plan::Win(moves) => {
             println!("game: {}", game);
             for m in moves {
