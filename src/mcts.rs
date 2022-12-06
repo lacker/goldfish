@@ -75,6 +75,7 @@ impl StateData {
         self.visits[index] += 1;
     }
 
+    // Pick the best reward, ignoring confidence
     fn best_move(&self) -> Option<Move> {
         let best_index = self
             .rewards
@@ -155,15 +156,19 @@ impl MCTS {
         answer
     }
 
-    // Returns the best move
+    // Returns the best move.
+    // If we have no idea, just pick the first valid move.
     pub fn best_move(&self, game: &Game) -> Option<Move> {
-        self.state_map.get(game).unwrap().best_move()
+        match self.state_map.get(game) {
+            Some(s) => s.best_move(),
+            None => game.non_kill_candidate_moves()[0],
+        }
     }
 }
 
 pub fn mcts_play(game: &Game) -> Option<Move> {
     let mut mcts = MCTS::new();
-    for _ in 0..100 {
+    for _ in 0..50 {
         mcts.playout(game);
     }
     mcts.best_move(game)
