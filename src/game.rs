@@ -251,6 +251,14 @@ impl Game {
         game
     }
 
+    pub fn new_going_random(deck: &[Card]) -> Self {
+        if rand::random() {
+            Self::new_going_first(deck)
+        } else {
+            Self::new_going_second(deck)
+        }
+    }
+
     // Play the first card in hand matching the provided card and target
     pub fn play(&mut self, card: &Card, target: Option<&Card>) {
         println!("play {} {:?}", card, target);

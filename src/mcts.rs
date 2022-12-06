@@ -1,39 +1,53 @@
 use std::collections::HashMap;
 use std::iter::zip;
 
-use crate::game::{Game, Move, Plan};
+use crate::{
+    game::{Game, Move, Plan},
+    player::escape_bot_play,
+};
+
+// A policy gives a distribution among possible moves for a given game state
+type Policy = fn(&Game, &Vec<Option<Move>>) -> Vec<f32>;
+
+#[derive(Clone, Debug)]
+struct StateActionData {
+    action: Option<Move>,
+
+    // The probability distribution from our shallow policy
+    // Also known as P(s, a)
+    shallow: f32,
+
+    // Average reward of this (state, action) pair in playouts
+    // Also known as Q(s, a)
+    reward: f32,
+
+    // Number of times this (state, action) pair has been visited
+    // Also known as N(s, a)
+    visits: u32,
+}
 
 // Information relevant to a game state during the MCTS playout
 // The vectors are parallel to non_kill_candidate_moves
 #[derive(Clone, Debug)]
 struct StateData {
     deterministic_win: bool,
-
-    // The possible actions
-    actions: Vec<Option<Move>>,
-
-    // Average reward of this (state, action) pair in playouts
-    rewards: Vec<f32>,
-
-    // Number of times this (state, action) pair has been visited
-    visits: Vec<u32>,
+    actions: Vec<StateActionData>,
 }
 
 impl StateData {
-    fn new(game: &Game) -> StateData {
-        let mut actions = Vec::new();
-        let mut rewards = Vec::new();
-        let mut visits = Vec::new();
-        for m in game.non_kill_candidate_moves() {
-            actions.push(m);
-            rewards.push(0.0);
-            visits.push(0);
-        }
+    fn new(game: &Game, policy: Policy) -> StateData {
+        let actions = game.non_kill_candidate_moves();
+        let shallow = policy(&game, &actions);
         StateData {
             deterministic_win: false,
-            actions,
-            rewards,
-            visits,
+            actions: zip(actions, shallow)
+                .map(|(action, shallow)| StateActionData {
+                    action,
+                    shallow,
+                    reward: 0.0,
+                    visits: 0,
+                })
+                .collect(),
         }
     }
 
@@ -41,23 +55,24 @@ impl StateData {
         StateData {
             deterministic_win: true,
             actions: Vec::new(),
-            rewards: Vec::new(),
-            visits: Vec::new(),
         }
-    }
-
-    fn total_visits(&self) -> u32 {
-        self.visits.iter().sum()
     }
 
     // Pick the index with the highest upper confidence bound
     fn explore_index(&self) -> usize {
-        // Treating P(s, a) as an even distribution
-        let confidence_term = (self.total_visits() as f32).sqrt() / (self.actions.len() as f32);
+        let total_visits = self.actions.iter().map(|a| a.visits).sum::<u32>() as f32;
 
-        // Give each candidate an upper confidence bound on the expected value
-        let upper_bounds: Vec<f32> = zip(self.rewards.iter(), self.visits.iter())
-            .map(|(reward, visits)| reward + confidence_term / (1.0 + *visits as f32))
+        // Give each candidate an upper confidence bound on the expected value of the reward
+        // Also known as U(s, a).
+        // See U(s, a) formula from:
+        //   https://web.stanford.edu/~surag/posts/alphazero.html
+        // We add the 0.01 so that we get something reasonable when the Q(s, a) are all zero
+        let exploration_parameter = 1.0;
+        let numerator = (0.01 + total_visits as f32).sqrt() * exploration_parameter;
+        let upper_bounds: Vec<f32> = self
+            .actions
+            .iter()
+            .map(|a| a.reward + numerator * a.shallow / (1.0 + a.visits as f32))
             .collect();
 
         // Pick the candidate with the highest upper confidence bound
@@ -70,39 +85,40 @@ impl StateData {
     }
 
     fn update(&mut self, index: usize, reward: f32) {
-        self.rewards[index] = (self.rewards[index] * self.visits[index] as f32 + reward)
-            / (self.visits[index] as f32 + 1.0);
-        self.visits[index] += 1;
+        let mut action = &mut self.actions[index];
+        action.reward =
+            (action.reward * action.visits as f32 + reward) / (action.visits as f32 + 1.0);
+        action.visits += 1;
     }
 
     // Pick the best reward, ignoring confidence
     fn best_move(&self) -> Option<Move> {
-        let best_index = self
-            .rewards
+        self.actions
             .iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| a.total_cmp(b))
+            .max_by(|a, b| a.reward.total_cmp(&b.reward))
             .unwrap()
-            .0;
-        self.actions[best_index]
+            .action
     }
 }
 
 pub struct MCTS {
     // Data for state-action pairs
     state_map: HashMap<Game, StateData>,
+
+    policy: Policy,
 }
 
-// Currently the reward is the "negative winning turn", capped at -10
+// Design the reward to be nonnegative so that it looks better than branches we haven't tried
 const MAX_TURNS: i32 = 10;
 fn reward(game: &Game) -> f32 {
-    -game.turn as f32
+    (MAX_TURNS - game.turn) as f32
 }
 
 impl MCTS {
-    pub fn new() -> MCTS {
+    pub fn new(policy: Policy) -> MCTS {
         MCTS {
             state_map: HashMap::new(),
+            policy,
         }
     }
 
@@ -131,13 +147,13 @@ impl MCTS {
 
         let mut state_data = match state_data {
             Some(s) => s.clone(),
-            None => StateData::new(game),
+            None => StateData::new(game, self.policy),
         };
 
         // Choose a move
         let i = state_data.explore_index();
         let mut game_clone = game.clone();
-        match state_data.actions[i] {
+        match state_data.actions[i].action {
             Some(m) => game_clone.make_move(&m),
             None => game_clone.end_turn(),
         }
@@ -166,8 +182,31 @@ impl MCTS {
     }
 }
 
+pub fn random_policy(_: &Game, actions: &Vec<Option<Move>>) -> Vec<f32> {
+    (0..actions.len())
+        .map(|_| 1.0 / actions.len() as f32)
+        .collect()
+}
+
+pub fn escape_policy(game: &Game, actions: &Vec<Option<Move>>) -> Vec<f32> {
+    let m = escape_bot_play(game);
+    // Find m in actions
+    match actions.iter().position(|a| a == &m) {
+        Some(i) => (0..actions.len())
+            .map(|j| {
+                if i == j {
+                    0.6
+                } else {
+                    0.4 / (actions.len() - 1) as f32
+                }
+            })
+            .collect(),
+        None => random_policy(game, actions),
+    }
+}
+
 pub fn mcts_play(game: &Game) -> Option<Move> {
-    let mut mcts = MCTS::new();
+    let mut mcts = MCTS::new(random_policy);
     for _ in 0..50 {
         mcts.playout(game);
     }

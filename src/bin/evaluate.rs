@@ -13,8 +13,7 @@ fn main() {
     let mut turn_map = BTreeMap::new();
 
     for i in 0..NUM_GAMES {
-        // Always go first for now
-        let mut game = Game::new_going_first(PANDA_DECK);
+        let mut game = Game::new_going_random(PANDA_DECK);
 
         loop {
             if game.print_deterministic_win(1.0) {
