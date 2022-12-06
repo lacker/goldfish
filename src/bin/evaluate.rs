@@ -27,6 +27,7 @@ fn main() {
 
             if game.turn >= 10 {
                 println!("game {} failed", i);
+                println!("hand: {}", game.hand_string());
                 break;
             }
 
