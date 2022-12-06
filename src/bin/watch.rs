@@ -207,7 +207,7 @@ fn main() {
                     println!("\nhand: {}", game.hand_string());
                     println!("mana: {}", log_data.mana);
                     println!("opponent life: {}", game.life);
-                    game.print_deterministic_win(20);
+                    game.print_deterministic_win(20.0);
                 }
                 last_mana = game.mana;
             }

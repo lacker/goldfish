@@ -17,7 +17,7 @@ fn main() {
         let mut game = Game::new_going_first(PANDA_DECK);
 
         loop {
-            if game.print_deterministic_win(1) {
+            if game.print_deterministic_win(1.0) {
                 println!("game {} won on turn {}", i, game.turn);
                 break;
             }

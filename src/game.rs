@@ -1,9 +1,7 @@
-#![allow(dead_code)]
-
 use rand;
 use rand::seq::{IteratorRandom, SliceRandom};
 use std::collections::hash_map::DefaultHasher;
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::iter;
@@ -29,7 +27,7 @@ pub struct Game {
     pub fish: Vec<Card>,            // the cards we can select for the pending Go Fishin'
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Move {
     pub index: usize,      // which card in hand to play, or which "fish" to select
     target: Option<usize>, // which card on the board to target, if any
@@ -470,6 +468,30 @@ impl Game {
         answer
     }
 
+    // A heuristic for which moves we should consider if there is no deterministic kill
+    pub fn non_kill_candidate_moves(&self) -> Vec<Option<Move>> {
+        let mut answer = vec![None];
+        for m in self.possible_moves() {
+            match self.card_for_move(&m) {
+                Some(card) => {
+                    if card.minion() || card == Card::Shadowstep {
+                        // Save it for the combo turn
+                    } else {
+                        answer.push(Some(m));
+                    }
+                }
+                None => {
+                    // All fish choices are possible
+                    answer.push(Some(m));
+                }
+            }
+        }
+        if self.can_end_turn() {
+            answer.push(None);
+        }
+        answer
+    }
+
     fn minions_in_deck(&self) -> usize {
         self.deck.iter().filter(|c| c.minion()).count()
     }
@@ -501,16 +523,24 @@ impl Game {
         hasher.finish()
     }
 
+    // Returns none if there is no card (ie it's a fish selection)
+    pub fn card_for_move(&self, m: &Move) -> Option<Card> {
+        if !self.fish.is_empty() {
+            return None;
+        }
+        Some(self.hand[m.index].card)
+    }
+
     // Returns a plan with reversed moves.
     // cache contains a map from hash of a game state to a plan for it, also with reversed moves.
     // We update cache as we go.
     fn find_deterministic_win_helper(
         &self,
         start: Instant,
-        time_limit: u64,
-        cache: &mut BTreeMap<u64, Plan>,
+        time_limit: f64,
+        cache: &mut HashMap<u64, Plan>,
     ) -> Plan {
-        if start.elapsed().as_secs() > time_limit {
+        if start.elapsed().as_secs() as f64 > time_limit {
             return Plan::Timeout;
         }
         if self.is_win() {
@@ -548,9 +578,9 @@ impl Game {
     }
 
     // Returns a plan with list of moves to win.
-    pub fn find_deterministic_win(&self, time_limit: u64) -> Plan {
+    pub fn find_deterministic_win(&self, time_limit: f64) -> Plan {
         let start = Instant::now();
-        let mut cache = BTreeMap::new();
+        let mut cache = HashMap::new();
         match self.find_deterministic_win_helper(start, time_limit, &mut cache) {
             Plan::Win(mut moves) => {
                 moves.reverse();
@@ -561,7 +591,7 @@ impl Game {
     }
 
     // Returns whether we won or not.
-    pub fn print_deterministic_win(&self, time_limit: u64) -> bool {
+    pub fn print_deterministic_win(&self, time_limit: f64) -> bool {
         let plan = self.find_deterministic_win(time_limit);
         match plan {
             Plan::Win(moves) => {
@@ -592,9 +622,9 @@ pub fn assert_exact_win_with_deck(mana: i32, life: i32, hand: Vec<Card>, deck: V
     game.life = life;
     game.add_cards_to_hand(hand.into_iter());
     game.deck = deck;
-    assert_matches!(game.find_deterministic_win(1), Plan::Win(_));
+    assert_matches!(game.find_deterministic_win(1.0), Plan::Win(_));
     game.life += 1;
-    match game.find_deterministic_win(1) {
+    match game.find_deterministic_win(1.0) {
         Plan::Win(moves) => {
             println!("game: {}", game);
             for m in moves {
