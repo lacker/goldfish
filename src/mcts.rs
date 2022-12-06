@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::iter::zip;
 
+use rand::seq::IteratorRandom;
+
 use crate::{
     game::{Game, Move, Plan},
     player::escape_bot_play,
@@ -203,6 +205,15 @@ pub fn escape_policy(game: &Game, actions: &Vec<Option<Move>>) -> Vec<f32> {
             .collect(),
         None => random_policy(game, actions),
     }
+}
+
+pub fn random_play(game: &Game) -> Option<Move> {
+    // Select a random element
+    *game
+        .non_kill_candidate_moves()
+        .iter()
+        .choose(&mut rand::thread_rng())
+        .unwrap()
 }
 
 pub fn mcts_play(game: &Game) -> Option<Move> {
