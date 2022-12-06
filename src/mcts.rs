@@ -163,7 +163,7 @@ impl MCTS {
 
 pub fn mcts_play(game: &Game) -> Option<Move> {
     let mut mcts = MCTS::new();
-    for _ in 0..3 {
+    for _ in 0..100 {
         mcts.playout(game);
     }
     mcts.best_move(game)

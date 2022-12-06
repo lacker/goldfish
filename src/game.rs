@@ -110,6 +110,9 @@ impl Game {
     }
 
     pub fn move_string(&self, m: &Move) -> String {
+        if !self.fish.is_empty() {
+            return self.fish[m.index].to_string();
+        }
         let mut s = self.hand[m.index].to_string();
         if let Some(t) = m.target {
             s.push_str(" -> ");
