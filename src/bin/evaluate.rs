@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use goldfish::card::PANDA_DECK;
 use goldfish::game::Game;
-use goldfish::mcts::mcts_play;
+use goldfish::mcts;
 
 const NUM_GAMES: usize = 100;
 
@@ -21,7 +21,7 @@ fn main() {
                 break;
             }
 
-            while let Some(m) = mcts_play(&game) {
+            while let Some(m) = mcts::mcts_play(&game) {
                 game.make_move(&m);
             }
 

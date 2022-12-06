@@ -217,7 +217,7 @@ pub fn random_play(game: &Game) -> Option<Move> {
 }
 
 pub fn mcts_play(game: &Game) -> Option<Move> {
-    let mut mcts = MCTS::new(random_policy);
+    let mut mcts = MCTS::new(escape_policy);
     for _ in 0..50 {
         mcts.playout(game);
     }
