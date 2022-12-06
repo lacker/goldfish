@@ -1,6 +1,6 @@
 use goldfish::card::PANDA_DECK;
 use goldfish::game::Game;
-use goldfish::player::escape_bot_play;
+use goldfish::mcts::mcts_play;
 use rand::Rng;
 
 fn main() {
@@ -19,18 +19,18 @@ fn main() {
             break;
         }
 
-        while let Some(m) = escape_bot_play(&game) {
+        while let Some(m) = mcts_play(&game) {
             println!("\nplay {}", game.move_string(&m));
             game.make_move(&m);
             println!("hand: {}", game.hand_string());
             println!("mana: {}", game.mana);
         }
 
+        game.end_turn();
+
         if game.turn >= 10 {
             println!("we give up");
             break;
         }
-
-        game.end_turn();
     }
 }

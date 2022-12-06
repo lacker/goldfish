@@ -5,7 +5,7 @@ use crate::game::{Game, Move, Plan};
 
 // Information relevant to a game state during the MCTS playout
 // The vectors are parallel to non_kill_candidate_moves
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct StateData {
     deterministic_win: bool,
 
@@ -51,7 +51,7 @@ impl StateData {
     }
 
     // Pick the index with the highest upper confidence bound
-    fn choose(&self) -> usize {
+    fn explore_index(&self) -> usize {
         // Treating P(s, a) as an even distribution
         let confidence_term = (self.total_visits() as f32).sqrt() / (self.actions.len() as f32);
 
@@ -73,6 +73,17 @@ impl StateData {
         self.rewards[index] = (self.rewards[index] * self.visits[index] as f32 + reward)
             / (self.visits[index] as f32 + 1.0);
         self.visits[index] += 1;
+    }
+
+    fn best_move(&self) -> Option<Move> {
+        let best_index = self
+            .rewards
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.total_cmp(b))
+            .unwrap()
+            .0;
+        self.actions[best_index]
     }
 }
 
@@ -96,47 +107,64 @@ impl MCTS {
 
     // Does a playout from the provided game state
     // Returns the reward for the playout.
-    pub fn playout(&mut self, mut game: Game) -> f32 {
+    pub fn playout(&mut self, game: &Game) -> f32 {
         if game.turn >= MAX_TURNS {
-            return reward(&game);
+            return reward(game);
         }
 
         let state_data = self.state_map.get(&game);
         if state_data.is_none() && game.storm == 0 {
             // Check for a deterministic win
             if let Plan::Win(_) = game.find_deterministic_win(0.1) {
-                let answer = reward(&game);
-                self.state_map.insert(game, StateData::new_win());
+                let answer = reward(game);
+                self.state_map.insert(game.clone(), StateData::new_win());
                 return answer;
             }
         }
         if let Some(state_data) = state_data {
             if state_data.deterministic_win {
                 // We already have found that this is a deterministic win
-                return reward(&game);
+                return reward(game);
             }
         }
 
         let mut state_data = match state_data {
             Some(s) => s.clone(),
-            None => StateData::new(&game),
+            None => StateData::new(game),
         };
 
         // Choose a move
-        let i = state_data.choose();
+        let i = state_data.explore_index();
+        let mut game_clone = game.clone();
         match state_data.actions[i] {
-            Some(m) => game.make_move(&m),
-            None => game.end_turn(),
+            Some(m) => game_clone.make_move(&m),
+            None => game_clone.end_turn(),
         }
 
         // Recurse
-        let game_clone = game.clone();
-        let answer = self.playout(game);
+        let answer = self.playout(&game_clone);
 
         // Update with the results of the playout
         state_data.update(i, answer);
-        self.state_map.insert(game_clone, state_data);
+        if let Some(s) = self.state_map.get_mut(game) {
+            *s = state_data;
+        } else {
+            self.state_map.insert(game.clone(), state_data);
+        }
 
         answer
     }
+
+    // Returns the best move
+    pub fn best_move(&self, game: &Game) -> Option<Move> {
+        self.state_map.get(game).unwrap().best_move()
+    }
+}
+
+pub fn mcts_play(game: &Game) -> Option<Move> {
+    let mut mcts = MCTS::new();
+    for _ in 0..3 {
+        mcts.playout(game);
+    }
+    mcts.best_move(game)
 }

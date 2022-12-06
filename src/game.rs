@@ -232,6 +232,7 @@ impl Game {
         game.draw();
         game.draw();
         game.draw();
+        game.end_turn();
         game
     }
 
@@ -243,6 +244,7 @@ impl Game {
         game.draw();
         game.draw();
         game.add_card_to_hand(&Card::Coin);
+        game.end_turn();
         game
     }
 
@@ -470,7 +472,10 @@ impl Game {
 
     // A heuristic for which moves we should consider if there is no deterministic kill
     pub fn non_kill_candidate_moves(&self) -> Vec<Option<Move>> {
-        let mut answer = vec![None];
+        let mut answer = Vec::new();
+        if self.can_end_turn() {
+            answer.push(None);
+        }
         for m in self.possible_moves() {
             match self.card_for_move(&m) {
                 Some(card) => {
@@ -517,7 +522,7 @@ impl Game {
         self.life <= 0
     }
 
-    fn hash_value(&self) -> u64 {
+    pub fn hash_value(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
         hasher.finish()
