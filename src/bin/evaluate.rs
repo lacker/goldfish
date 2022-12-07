@@ -25,7 +25,7 @@ fn main() {
                 break;
             }
 
-            if game.storm == 0 && game.print_deterministic_win(1.0) {
+            if game.turn_is_fresh() && game.print_deterministic_win(1.0) {
                 println!("game {} won on turn {}", i, game.turn);
                 break;
             }

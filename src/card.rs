@@ -229,6 +229,10 @@ impl Card {
             _ => false,
         }
     }
+
+    pub fn is_trade(&self) -> bool {
+        self == &Card::Cutlass || self == &Card::Extortion
+    }
 }
 
 // Properties that apply to only the specific version of this card, in our hand.

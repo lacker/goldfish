@@ -17,7 +17,7 @@ pub struct Game {
     pub passage: Vec<CardInstance>, // cards we've set aside with Secret Passage
     pub life: i32,                  // the opponent's life
     pub mana: i32,                  // our current mana
-    pub storm: i32,                 // number of things played this turn
+    storm: i32,                     // number of things played this turn
     foxy: i32,                      // number of stacks of the foxy effect
     scabbs: i32,                    // number of stacks of the scabbs effect
     next_scabbs: i32,               // number of stacks of scabbs effect after this one
@@ -134,6 +134,10 @@ impl Game {
         }
     }
 
+    pub fn can_combo(&self) -> bool {
+        self.storm > 0
+    }
+
     // Mana cost of the card at the given index in hand
     // Handles discounts
     fn cost(&self, index: usize) -> i32 {
@@ -177,6 +181,10 @@ impl Game {
 
     pub fn add_card_to_hand(&mut self, card: &Card) {
         self.add_card_instance_to_hand(CardInstance::new(card))
+    }
+
+    pub fn turn_is_fresh(&self) -> bool {
+        self.storm == 0 && self.turn == self.mana
     }
 
     // Handles battlecries and combos
@@ -413,7 +421,9 @@ impl Game {
             _ => (),
         }
 
-        self.storm += 1
+        if !card.card.is_trade() {
+            self.storm += 1;
+        }
     }
 
     pub fn take_action(&mut self, action: &Action) {

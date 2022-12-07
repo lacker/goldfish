@@ -132,7 +132,7 @@ impl MCTS {
         }
 
         let state_data = self.state_map.get(&game);
-        if state_data.is_none() && game.storm == 0 {
+        if state_data.is_none() && game.turn_is_fresh() {
             // Check for a deterministic win
             if let Plan::Win(_) = game.find_deterministic_win(0.05) {
                 let answer = reward(game);

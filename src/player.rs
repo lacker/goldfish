@@ -13,7 +13,7 @@ pub fn escape_bot_action(game: &Game) -> Action {
 
     let plays = game.plays();
 
-    if game.storm > 0 {
+    if game.can_combo() {
         // Try to play any useful combo cards we have
         for play in &plays {
             let ci = game.hand[play.index];

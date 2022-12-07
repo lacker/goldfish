@@ -13,7 +13,7 @@ fn main() {
     };
 
     loop {
-        if game.storm == 0 {
+        if game.turn_is_fresh() {
             println!("\nturn {}", game.turn);
             println!("{}", game);
             if game.print_deterministic_win(5.0) {
