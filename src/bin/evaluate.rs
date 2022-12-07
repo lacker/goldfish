@@ -16,14 +16,8 @@ fn main() {
         let mut game = Game::new_going_random(PANDA_DECK);
 
         loop {
-            if game.print_deterministic_win(1.0) {
-                println!("game {} won on turn {}", i, game.turn);
-                break;
-            }
-
-            while let Some(m) = mcts::mcts_play(&game) {
-                game.make_move(&m);
-            }
+            let action = mcts::mcts_action(&game);
+            game.take_action(&action);
 
             if game.turn >= 10 {
                 println!("game {} failed", i);
@@ -31,7 +25,10 @@ fn main() {
                 break;
             }
 
-            game.end_turn();
+            if game.storm == 0 && game.print_deterministic_win(1.0) {
+                println!("game {} won on turn {}", i, game.turn);
+                break;
+            }
         }
         *turn_map.entry(game.turn).or_insert(0) += 1;
         println!();

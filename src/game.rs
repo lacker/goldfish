@@ -27,15 +27,23 @@ pub struct Game {
     pub fish: Vec<Card>,            // the cards we can select for the pending Go Fishin'
 }
 
+// Representation of the different ways to play a card
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct Move {
-    pub index: usize,      // which card in hand to play, or which "fish" to select
+pub struct Play {
+    pub index: usize,      // which card in hand to play
     target: Option<usize>, // which card on the board to target, if any
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum Action {
+    Play(Play),    // playing a card from hand
+    Choose(usize), // for selecting a Gone Fishin' card
+    EndTurn,
 }
 
 #[derive(Clone, Debug)]
 pub enum Plan {
-    Win(Vec<Move>),
+    Win(Vec<Play>),
     Lose,
     Timeout,
 }
@@ -109,16 +117,21 @@ impl Game {
             .join(", ")
     }
 
-    pub fn move_string(&self, m: &Move) -> String {
-        if !self.fish.is_empty() {
-            return self.fish[m.index].to_string();
-        }
-        let mut s = self.hand[m.index].to_string();
-        if let Some(t) = m.target {
+    pub fn play_string(&self, play: &Play) -> String {
+        let mut s = self.hand[play.index].to_string();
+        if let Some(t) = play.target {
             s.push_str(" -> ");
             s.push_str(&self.board[t].to_string());
         }
         s
+    }
+
+    pub fn action_string(&self, action: &Action) -> String {
+        match action {
+            Action::Play(play) => self.play_string(play),
+            Action::Choose(i) => self.fish[*i].to_string(),
+            Action::EndTurn => "end turn".to_string(),
+        }
     }
 
     // Mana cost of the card at the given index in hand
@@ -260,7 +273,7 @@ impl Game {
     }
 
     // Play the first card in hand matching the provided card and target
-    pub fn play(&mut self, card: &Card, target: Option<&Card>) {
+    pub fn play_card(&mut self, card: &Card, target: Option<&Card>) {
         println!("play {} {:?}", card, target);
         let hand_index = self
             .hand
@@ -276,40 +289,32 @@ impl Game {
             ),
             None => None,
         };
-        let m = Move {
+        let play = Play {
             index: hand_index,
             target: move_target,
         };
 
         // Check that m is in the list of possible moves
-        if !self.possible_moves().contains(&m) {
+        if !self.plays().contains(&play) {
             // print the board
             println!("{}", self);
-            println!("possible moves: {:?}", self.possible_moves());
-            panic!("impossible move: {:?}", m);
+            println!("possible moves: {:?}", self.plays());
+            panic!("impossible move: {:?}", play);
         }
 
-        self.make_move(&m);
+        self.play(&play);
     }
 
-    // Play the given Move
-    pub fn make_move(&mut self, m: &Move) {
-        if !self.fish.is_empty() {
-            let card = self.fish[m.index];
-            self.draw_specific(&card);
-            self.fish.clear();
-            return;
-        }
-
-        let card = self.hand[m.index];
-        self.mana -= self.cost(m.index);
+    pub fn play(&mut self, play: &Play) {
+        let card = self.hand[play.index];
+        self.mana -= self.cost(play.index);
         assert!(self.mana >= 0);
-        self.hand.remove(m.index);
+        self.hand.remove(play.index);
         self.scabbs = self.next_scabbs;
         self.next_scabbs = 0;
 
         if card.card == Card::Tenwu {
-            let target_index = m.target.unwrap();
+            let target_index = play.target.unwrap();
             let target_card = self.board[target_index];
             let mut ci = CardInstance::new(&target_card);
             ci.tenwu = true;
@@ -348,7 +353,7 @@ impl Game {
             }
             Card::Preparation => self.prep_pending = true,
             Card::Shadowstep => {
-                let target_card = self.board.remove(m.target.unwrap());
+                let target_card = self.board.remove(play.target.unwrap());
                 let mut ci = CardInstance::new(&target_card);
                 ci.cost_reduction = 2;
                 self.add_card_instance_to_hand(ci);
@@ -411,6 +416,18 @@ impl Game {
         self.storm += 1
     }
 
+    pub fn take_action(&mut self, action: &Action) {
+        match action {
+            Action::Play(m) => self.play(m),
+            Action::Choose(i) => {
+                let card = self.fish[*i];
+                self.draw_specific(&card);
+                self.fish.clear();
+            }
+            Action::EndTurn => self.end_turn(),
+        }
+    }
+
     pub fn can_end_turn(&self) -> bool {
         self.fish.is_empty()
     }
@@ -446,87 +463,85 @@ impl Game {
         self.draw();
     }
 
-    pub fn possible_moves(&self) -> Vec<Move> {
+    pub fn actions(&self) -> Vec<Action> {
         if !self.fish.is_empty() {
             // Return a move for each index in fish
-            return self
-                .fish
-                .iter()
-                .enumerate()
-                .map(|(i, _)| Move {
-                    index: i,
-                    target: None,
-                })
-                .collect();
+            return (0..self.fish.len()).map(|i| Action::Choose(i)).collect();
         }
-        let mut answer = Vec::new();
+        let mut answer = vec![Action::EndTurn];
         for (index, ci) in self.hand.iter().enumerate() {
             if !self.can_play(index) {
                 continue;
             }
             if ci.card.must_target() {
                 for target in 0..self.board.len() {
-                    answer.push(Move {
+                    answer.push(Action::Play(Play {
                         index,
                         target: Some(target),
-                    })
+                    }));
                 }
             } else {
-                answer.push(Move {
+                answer.push(Action::Play(Play {
                     index,
                     target: None,
-                });
+                }))
             }
         }
         answer
     }
 
+    pub fn plays(&self) -> Vec<Play> {
+        self.actions()
+            .into_iter()
+            .filter_map(|action| match action {
+                Action::Play(p) => Some(p),
+                _ => None,
+            })
+            .collect()
+    }
+
     // A heuristic for which moves we should consider if there is no deterministic kill
-    pub fn non_kill_candidate_moves(&self) -> Vec<Option<Move>> {
-        let mut answer = Vec::new();
-        if self.can_end_turn() {
-            answer.push(None);
-        }
-        for m in self.possible_moves() {
-            match self.card_for_move(&m) {
-                Some(card) => {
-                    if card.minion() || card == Card::Shadowstep {
-                        // Save it for the combo turn
-                    } else {
-                        answer.push(Some(m));
-                    }
+    pub fn non_kill_actions(&self) -> Vec<Action> {
+        self.actions()
+            .into_iter()
+            .filter(|action| match action {
+                Action::Play(p) => {
+                    let card = self.hand[p.index].card;
+                    !card.minion() && card != Card::Shadowstep
                 }
-                None => {
-                    // All fish choices are possible
-                    answer.push(Some(m));
-                }
-            }
-        }
-        if self.can_end_turn() {
-            answer.push(None);
-        }
-        answer
+                _ => true,
+            })
+            .collect()
     }
 
     fn minions_in_deck(&self) -> usize {
         self.deck.iter().filter(|c| c.minion()).count()
     }
 
-    fn is_deterministic(&self, m: &Move) -> bool {
-        if !self.fish.is_empty() {
-            return true;
-        }
-        let card = self.hand[m.index];
-        match card.card {
-            Card::GoneFishin => false,
-            Card::SecretPassage => false,
-            Card::Swindle => false,
-            Card::Door => false,
-            Card::Cutlass => false,
-            Card::Extortion => false,
-            Card::Shroud => self.minions_in_deck() <= 2,
-            _ => true,
-        }
+    // A heuristic for which moves we should consider when searching for a deterministic kill
+    pub fn deterministic_plays(&self) -> Vec<Play> {
+        self.actions()
+            .into_iter()
+            .filter_map(|action| match action {
+                Action::Play(p) => match self.hand[p.index].card {
+                    Card::GoneFishin => None,
+                    Card::SecretPassage => None,
+                    Card::Swindle => None,
+                    Card::Door => None,
+                    Card::Cutlass => None,
+                    Card::Extortion => None,
+                    Card::Shroud => {
+                        if self.minions_in_deck() <= 2 {
+                            Some(p)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => Some(p),
+                },
+                _ => None,
+            })
+            .collect()
     }
 
     fn is_win(&self) -> bool {
@@ -537,14 +552,6 @@ impl Game {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
         hasher.finish()
-    }
-
-    // Returns none if there is no card (ie it's a fish selection)
-    pub fn card_for_move(&self, m: &Move) -> Option<Card> {
-        if !self.fish.is_empty() {
-            return None;
-        }
-        Some(self.hand[m.index].card)
     }
 
     // Returns a plan with reversed moves.
@@ -569,17 +576,13 @@ impl Game {
             return plan.clone();
         }
 
-        let possible = self.possible_moves();
-        for m in possible {
-            if !self.is_deterministic(&m) {
-                continue;
-            }
+        for play in self.deterministic_plays() {
             let mut clone = self.clone();
-            clone.make_move(&m);
+            clone.play(&play);
             match clone.find_deterministic_win_helper(start, time_limit, cache) {
-                Plan::Win(mut moves) => {
-                    moves.push(m);
-                    let plan = Plan::Win(moves);
+                Plan::Win(mut plays) => {
+                    plays.push(play);
+                    let plan = Plan::Win(plays);
                     cache.insert(hash, plan.clone());
                     return plan;
                 }
@@ -598,9 +601,9 @@ impl Game {
         let start = Instant::now();
         let mut cache = HashMap::new();
         match self.find_deterministic_win_helper(start, time_limit, &mut cache) {
-            Plan::Win(mut moves) => {
-                moves.reverse();
-                Plan::Win(moves)
+            Plan::Win(mut plays) => {
+                plays.reverse();
+                Plan::Win(plays)
             }
             x => x,
         }
@@ -610,12 +613,12 @@ impl Game {
     pub fn print_deterministic_win(&self, time_limit: f64) -> bool {
         let plan = self.find_deterministic_win(time_limit);
         match plan {
-            Plan::Win(moves) => {
+            Plan::Win(plays) => {
                 println!("win found:");
                 let mut clone = self.clone();
-                for m in moves {
-                    println!("{}", clone.move_string(&m));
-                    clone.make_move(&m);
+                for play in plays {
+                    println!("{}", clone.play_string(&play));
+                    clone.play(&play);
                 }
                 true
             }
@@ -641,11 +644,11 @@ pub fn assert_exact_win_with_deck(mana: i32, life: i32, hand: Vec<Card>, deck: V
     assert_matches!(game.find_deterministic_win(1.0), Plan::Win(_));
     game.life += 1;
     match game.find_deterministic_win(1.0) {
-        Plan::Win(moves) => {
+        Plan::Win(plays) => {
             println!("game: {}", game);
-            for m in moves {
-                println!("{}", game.move_string(&m));
-                game.make_move(&m);
+            for play in plays {
+                println!("{}", game.play_string(&play));
+                game.play(&play);
                 println!("mana: {}, life: {}", game.mana, game.life);
             }
             panic!("expected no win");
@@ -692,15 +695,15 @@ mod tests {
             Card::Pillager,
         ];
         g.add_cards_to_hand(hand.into_iter());
-        g.play(&Card::Foxy, None);
-        g.play(&Card::Shadowstep, Some(&Card::Foxy));
-        g.play(&Card::Foxy, None);
-        g.play(&Card::Scabbs, None);
-        g.play(&Card::Shark, None);
-        g.play(&Card::Tenwu, Some(&Card::Scabbs));
-        g.play(&Card::Scabbs, None);
-        g.play(&Card::Pillager, None);
-        g.play(&Card::Pillager, None);
+        g.play_card(&Card::Foxy, None);
+        g.play_card(&Card::Shadowstep, Some(&Card::Foxy));
+        g.play_card(&Card::Foxy, None);
+        g.play_card(&Card::Scabbs, None);
+        g.play_card(&Card::Shark, None);
+        g.play_card(&Card::Tenwu, Some(&Card::Scabbs));
+        g.play_card(&Card::Scabbs, None);
+        g.play_card(&Card::Pillager, None);
+        g.play_card(&Card::Pillager, None);
         assert!(g.life <= 0);
     }
 
@@ -719,16 +722,16 @@ mod tests {
             Card::Pillager,
         ];
         g.add_cards_to_hand(hand.into_iter());
-        g.play(&Card::Foxy, None);
-        g.play(&Card::Scabbs, None);
-        g.play(&Card::Shark, None);
-        g.play(&Card::Tenwu, Some(&Card::Scabbs));
-        g.play(&Card::Shadowstep, Some(&Card::Tenwu));
-        g.play(&Card::Scabbs, None);
-        g.play(&Card::Pillager, None);
-        g.play(&Card::Pillager, None);
-        g.play(&Card::Tenwu, Some(&Card::Pillager));
-        g.play(&Card::Pillager, None);
+        g.play_card(&Card::Foxy, None);
+        g.play_card(&Card::Scabbs, None);
+        g.play_card(&Card::Shark, None);
+        g.play_card(&Card::Tenwu, Some(&Card::Scabbs));
+        g.play_card(&Card::Shadowstep, Some(&Card::Tenwu));
+        g.play_card(&Card::Scabbs, None);
+        g.play_card(&Card::Pillager, None);
+        g.play_card(&Card::Pillager, None);
+        g.play_card(&Card::Tenwu, Some(&Card::Pillager));
+        g.play_card(&Card::Pillager, None);
         assert!(g.life <= 0);
     }
 

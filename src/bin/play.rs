@@ -1,6 +1,6 @@
 use goldfish::card::PANDA_DECK;
 use goldfish::game::Game;
-use goldfish::mcts::mcts_play;
+use goldfish::mcts::mcts_action;
 use rand::Rng;
 
 fn main() {
@@ -13,20 +13,20 @@ fn main() {
     };
 
     loop {
-        println!("\nturn {}", game.turn);
-        println!("{}", game);
-        if game.print_deterministic_win(5.0) {
-            break;
+        if game.storm == 0 {
+            println!("\nturn {}", game.turn);
+            println!("{}", game);
+            if game.print_deterministic_win(5.0) {
+                break;
+            }
         }
 
-        while let Some(m) = mcts_play(&game) {
-            println!("\nplay {}", game.move_string(&m));
-            game.make_move(&m);
-            println!("hand: {}", game.hand_string());
-            println!("mana: {}", game.mana);
-        }
+        let action = mcts_action(&game);
+        println!("\naction: {}", game.action_string(&action));
+        game.take_action(&action);
 
-        game.end_turn();
+        println!("hand: {}", game.hand_string());
+        println!("mana: {}", game.mana);
 
         if game.turn >= 10 {
             println!("we give up");

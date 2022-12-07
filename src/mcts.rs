@@ -4,16 +4,16 @@ use std::iter::zip;
 use rand::seq::IteratorRandom;
 
 use crate::{
-    game::{Game, Move, Plan},
-    player::escape_bot_play,
+    game::{Action, Game, Plan},
+    player::escape_bot_action,
 };
 
-// A policy gives a distribution among possible moves for a given game state
-type Policy = fn(&Game, &Vec<Option<Move>>) -> Vec<f32>;
+// A policy gives a distribution among possible actions for a given game state
+type Policy = fn(&Game, &Vec<Action>) -> Vec<f32>;
 
 #[derive(Clone, Debug)]
 struct StateActionData {
-    action: Option<Move>,
+    action: Action,
 
     // The probability distribution from our shallow policy
     // Also known as P(s, a)
@@ -38,7 +38,7 @@ struct StateData {
 
 impl StateData {
     fn new(game: &Game, policy: Policy) -> StateData {
-        let actions = game.non_kill_candidate_moves();
+        let actions = game.non_kill_actions();
         let shallow = policy(&game, &actions);
         StateData {
             deterministic_win: false,
@@ -94,7 +94,7 @@ impl StateData {
     }
 
     // Pick the best reward, ignoring confidence
-    fn best_move(&self) -> Option<Move> {
+    fn best_action(&self) -> Action {
         self.actions
             .iter()
             .max_by(|a, b| a.reward.total_cmp(&b.reward))
@@ -134,7 +134,7 @@ impl MCTS {
         let state_data = self.state_map.get(&game);
         if state_data.is_none() && game.storm == 0 {
             // Check for a deterministic win
-            if let Plan::Win(_) = game.find_deterministic_win(0.1) {
+            if let Plan::Win(_) = game.find_deterministic_win(0.05) {
                 let answer = reward(game);
                 self.state_map.insert(game.clone(), StateData::new_win());
                 return answer;
@@ -155,10 +155,7 @@ impl MCTS {
         // Choose a move
         let i = state_data.explore_index();
         let mut game_clone = game.clone();
-        match state_data.actions[i].action {
-            Some(m) => game_clone.make_move(&m),
-            None => game_clone.end_turn(),
-        }
+        game_clone.take_action(&state_data.actions[i].action);
 
         // Recurse
         let answer = self.playout(&game_clone);
@@ -174,26 +171,26 @@ impl MCTS {
         answer
     }
 
-    // Returns the best move.
-    // If we have no idea, just pick the first valid move.
-    pub fn best_move(&self, game: &Game) -> Option<Move> {
+    // Returns the best action.
+    // If we have no idea, just pick the first one.
+    pub fn best_action(&self, game: &Game) -> Action {
         match self.state_map.get(game) {
-            Some(s) => s.best_move(),
-            None => game.non_kill_candidate_moves()[0],
+            Some(s) => s.best_action(),
+            None => game.non_kill_actions()[0],
         }
     }
 }
 
-pub fn random_policy(_: &Game, actions: &Vec<Option<Move>>) -> Vec<f32> {
+pub fn random_policy(_: &Game, actions: &Vec<Action>) -> Vec<f32> {
     (0..actions.len())
         .map(|_| 1.0 / actions.len() as f32)
         .collect()
 }
 
-pub fn escape_policy(game: &Game, actions: &Vec<Option<Move>>) -> Vec<f32> {
-    let m = escape_bot_play(game);
+pub fn escape_policy(game: &Game, actions: &Vec<Action>) -> Vec<f32> {
+    let action = escape_bot_action(game);
     // Find m in actions
-    match actions.iter().position(|a| a == &m) {
+    match actions.iter().position(|a| a == &action) {
         Some(i) => (0..actions.len())
             .map(|j| {
                 if i == j {
@@ -207,19 +204,19 @@ pub fn escape_policy(game: &Game, actions: &Vec<Option<Move>>) -> Vec<f32> {
     }
 }
 
-pub fn random_play(game: &Game) -> Option<Move> {
+pub fn random_action(game: &Game) -> Action {
     // Select a random element
     *game
-        .non_kill_candidate_moves()
+        .non_kill_actions()
         .iter()
         .choose(&mut rand::thread_rng())
         .unwrap()
 }
 
-pub fn mcts_play(game: &Game) -> Option<Move> {
+pub fn mcts_action(game: &Game) -> Action {
     let mut mcts = MCTS::new(escape_policy);
-    for _ in 0..50 {
+    for _ in 0..200 {
         mcts.playout(game);
     }
-    mcts.best_move(game)
+    mcts.best_action(game)
 }
